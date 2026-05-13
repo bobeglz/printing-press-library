@@ -16,7 +16,7 @@ on:
 permissions:
   checks: read
   contents: read
-  issues: read
+  issues: write
   pull-requests: read
 
 jobs:
@@ -24,7 +24,7 @@ jobs:
     name: Greptile policy gate
     if: github.event_name != 'pull_request_target' || github.event.pull_request.draft == false
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 17
     concurrency:
       group: greptile-policy-gate-${{ github.event.pull_request.number || inputs.pr || github.run_id }}
       cancel-in-progress: true
@@ -66,13 +66,31 @@ jobs:
 
           echo "Evaluating PR #${PR_NUMBER} at ${HEAD_SHA}"
 
-          deadline=$((SECONDS + 600))
+          deadline=$((SECONDS + 900))
+          nudge_after=180
+          start="${SECONDS}"
+          nudged=0
+          nudge_marker="<!-- greptile-policy-gate:nudge:${HEAD_SHA} -->"
           greptile_check=""
           while [ "${SECONDS}" -lt "${deadline}" ]; do
             checks_json="$(gh api "repos/${GITHUB_REPOSITORY}/commits/${HEAD_SHA}/check-runs?per_page=100&check_name=Greptile+Review")"
             greptile_check="$(jq -c '[.check_runs[] | select(.app.slug == "greptile-apps" and .name == "Greptile Review")] | .[0] // empty' <<<"${checks_json}")"
 
             if [ -z "${greptile_check}" ]; then
+              if [ "${nudged}" -eq 0 ] && [ $((SECONDS - start)) -ge "${nudge_after}" ]; then
+                existing="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
+                  --jq "[.[] | select(.body | contains(\"${nudge_marker}\"))] | length")"
+                if [ "${existing:-0}" -gt 0 ]; then
+                  echo "Nudge already posted for ${HEAD_SHA}; not reposting."
+                  nudged=1
+                else
+                  echo "Greptile Review still missing after $((SECONDS - start))s; posting @greptileai review nudge."
+                  nudge_body="$(printf '@greptileai review\n\n<sub>Auto-nudge from `greptile-policy-gate.yml` because no Greptile Review check appeared for `%s` after %ss. This usually means the PR is over Greptile auto-review size cap; manual triggers bypass it.</sub>\n\n%s\n' "${HEAD_SHA}" "$((SECONDS - start))" "${nudge_marker}")"
+                  gh api "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments" \
+                    -f "body=${nudge_body}" >/dev/null
+                  nudged=1
+                fi
+              fi
               echo "Greptile Review check not found yet; waiting..."
               sleep 15
               continue
