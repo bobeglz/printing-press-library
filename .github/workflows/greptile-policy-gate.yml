@@ -79,7 +79,8 @@ jobs:
             if [ -z "${greptile_check}" ]; then
               if [ "${nudged}" -eq 0 ] && [ $((SECONDS - start)) -ge "${nudge_after}" ]; then
                 existing="$(gh api --paginate "repos/${GITHUB_REPOSITORY}/issues/${PR_NUMBER}/comments?per_page=100" \
-                  --jq "[.[] | select(.body | contains(\"${nudge_marker}\"))] | length")"
+                  --jq "[.[] | select(.body | contains(\"${nudge_marker}\"))] | length" \
+                  | awk '{sum += $1} END {print sum+0}')"
                 if [ "${existing:-0}" -gt 0 ]; then
                   echo "Nudge already posted for ${HEAD_SHA}; not reposting."
                   nudged=1
