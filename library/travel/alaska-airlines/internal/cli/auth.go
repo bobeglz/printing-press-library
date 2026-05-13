@@ -4,11 +4,12 @@
 package cli
 
 import (
-	"github.com/mvanhorn/printing-press-library/library/travel/alaska-airlines/internal/config"
 	"bufio"
 	"bytes"
+	"database/sql"
 	"encoding/json"
 	"fmt"
+	"github.com/mvanhorn/printing-press-library/library/travel/alaska-airlines/internal/config"
 	"github.com/spf13/cobra"
 	"io"
 	"net/http"
@@ -19,6 +20,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	_ "modernc.org/sqlite"
 )
 
 func newAuthCmd(flags *rootFlags) *cobra.Command {
@@ -174,10 +177,11 @@ profile by name when the installed backend supports it.`,
 				fmt.Fprintf(w, "%s Found session cookies via live Chrome.\n", green("OK"))
 			}
 
-			composed := ""
+			composedParts := make([]string, 0, len(requiredCookies))
 			for _, name := range requiredCookies {
-				composed = strings.ReplaceAll(composed, "{"+name+"}", cookieMap[name])
+				composedParts = append(composedParts, name+"="+cookieMap[name])
 			}
+			composed := strings.Join(composedParts, "; ")
 			// Validate the composed auth before saving — catch stale/expired sessions
 			fmt.Fprintf(w, "Validating session...")
 			if err := validateComposedAuth(composed); err != nil {
@@ -302,9 +306,6 @@ func discoverChromeProfiles(domain string) ([]chromeProfile, error) {
 	if err != nil {
 		return nil, err
 	}
-	if _, err := exec.LookPath("sqlite3"); err != nil {
-		return nil, fmt.Errorf("sqlite3 not found")
-	}
 
 	entries, err := os.ReadDir(dataDir)
 	if err != nil {
@@ -393,14 +394,16 @@ func countCookiesForDomain(cookiesDB, domainPattern string) int {
 	_ = copyFileIfExists(cookiesDB+"-wal", tmpPath+"-wal")
 	_ = copyFileIfExists(cookiesDB+"-shm", tmpPath+"-shm")
 
-	query := fmt.Sprintf("SELECT COUNT(*) FROM cookies WHERE host_key LIKE '%s'", domainPattern)
-	out, err := exec.Command("sqlite3", tmpPath, query).Output()
+	db, err := sql.Open("sqlite", "file:"+tmpPath+"?mode=ro")
 	if err != nil {
 		return 0
 	}
+	defer db.Close()
 
 	count := 0
-	fmt.Sscanf(strings.TrimSpace(string(out)), "%d", &count)
+	if err := db.QueryRow("SELECT COUNT(*) FROM cookies WHERE host_key LIKE ?", domainPattern).Scan(&count); err != nil {
+		return 0
+	}
 	return count
 }
 
