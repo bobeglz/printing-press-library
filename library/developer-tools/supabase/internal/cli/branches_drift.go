@@ -88,6 +88,9 @@ grouped by parent project. The Tuesday cleanup target list.`,
 				}
 				results = append(results, d)
 			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating branches: %w", err)
+			}
 
 			out := cmd.OutOrStdout()
 			if flags.asJSON {

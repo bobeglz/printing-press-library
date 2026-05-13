@@ -100,6 +100,9 @@ one table. Use --org to scope to a single organization.`,
 				}
 				results = append(results, f)
 			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating functions: %w", err)
+			}
 
 			out := cmd.OutOrStdout()
 			if flags.asJSON {

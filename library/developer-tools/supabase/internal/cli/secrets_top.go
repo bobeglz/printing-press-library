@@ -102,6 +102,9 @@ projects, and organizations tables; no live API calls.`,
 				}
 				results = append(results, m)
 			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating secrets: %w", err)
+			}
 
 			out := cmd.OutOrStdout()
 			if flags.asJSON {
@@ -202,6 +205,9 @@ older than 180 days. Tune --older-than (e.g., 90d, 365d) for different policies.
 					s.DaysSince = int(now.Sub(t).Hours() / 24)
 				}
 				results = append(results, s)
+			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating secrets: %w", err)
 			}
 
 			out := cmd.OutOrStdout()

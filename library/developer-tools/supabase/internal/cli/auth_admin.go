@@ -244,6 +244,9 @@ single-project users). Aggregates users created_at within --since window.`,
 					projects = append(projects, p)
 				}
 			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating projects: %w", err)
+			}
 
 			out := cmd.OutOrStdout()
 
@@ -277,42 +280,69 @@ single-project users). Aggregates users created_at within --since window.`,
 					})
 					continue
 				}
-				path := fmt.Sprintf("/auth/v1/admin/users?per_page=%d", perPage)
-				body, _, callErr := ps.do(ctx, "GET", path, nil, true)
-				if callErr != nil {
-					errors = append(errors, map[string]string{
-						"project_ref": p.Ref,
-						"reason":      callErr.Error(),
-					})
-					continue
-				}
-				var resp struct {
-					Users []map[string]any `json:"users"`
-				}
-				if err := json.Unmarshal(body, &resp); err != nil {
-					errors = append(errors, map[string]string{
-						"project_ref": p.Ref,
-						"reason":      "non-JSON response",
-					})
-					continue
-				}
-				for _, u := range resp.Users {
-					createdStr, _ := u["created_at"].(string)
-					if createdStr == "" {
-						continue
+				// GoTrue /admin/users paginates via page/per_page and returns users
+				// newest-first by created_at. Page until either the page returns
+				// fewer than per_page (last page reached) or until every user on
+				// a page is older than cutoff (window exhausted). maxPages caps
+				// runaway iteration for very large projects.
+				const maxPages = 50
+				stopProject := false
+				for page := 1; page <= maxPages && !stopProject; page++ {
+					path := fmt.Sprintf("/auth/v1/admin/users?page=%d&per_page=%d", page, perPage)
+					body, _, callErr := ps.do(ctx, "GET", path, nil, true)
+					if callErr != nil {
+						errors = append(errors, map[string]string{
+							"project_ref": p.Ref,
+							"reason":      callErr.Error(),
+						})
+						break
 					}
-					t, perr := time.Parse(time.RFC3339, createdStr)
-					if perr != nil || t.Before(cutoff) {
-						continue
+					var resp struct {
+						Users []map[string]any `json:"users"`
 					}
-					id, _ := u["id"].(string)
-					email, _ := u["email"].(string)
-					results = append(results, recentUser{
-						ID:         id,
-						Email:      email,
-						CreatedAt:  createdStr,
-						ProjectRef: p.Ref,
-					})
+					if err := json.Unmarshal(body, &resp); err != nil {
+						errors = append(errors, map[string]string{
+							"project_ref": p.Ref,
+							"reason":      "non-JSON response",
+						})
+						break
+					}
+					inWindowOnPage := 0
+					for _, u := range resp.Users {
+						createdStr, _ := u["created_at"].(string)
+						if createdStr == "" {
+							continue
+						}
+						t, perr := time.Parse(time.RFC3339, createdStr)
+						if perr != nil {
+							continue
+						}
+						if t.Before(cutoff) {
+							// Newest-first ordering means once we see a user
+							// older than cutoff, every subsequent user on this
+							// and later pages is also older — bail out.
+							stopProject = true
+							continue
+						}
+						inWindowOnPage++
+						id, _ := u["id"].(string)
+						email, _ := u["email"].(string)
+						results = append(results, recentUser{
+							ID:         id,
+							Email:      email,
+							CreatedAt:  createdStr,
+							ProjectRef: p.Ref,
+						})
+					}
+					if len(resp.Users) < perPage {
+						break
+					}
+					if page == maxPages && inWindowOnPage > 0 {
+						errors = append(errors, map[string]string{
+							"project_ref": p.Ref,
+							"reason":      fmt.Sprintf("pagination capped at %d pages (%d users scanned); window may include older signups not reported", maxPages, maxPages*perPage),
+						})
+					}
 				}
 			}
 

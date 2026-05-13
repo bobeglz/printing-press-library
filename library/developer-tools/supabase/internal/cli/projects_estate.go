@@ -94,6 +94,9 @@ endpoint for one project.`,
 				}
 				results = append(results, e)
 			}
+			if err := rows.Err(); err != nil {
+				return fmt.Errorf("iterating projects: %w", err)
+			}
 
 			out := cmd.OutOrStdout()
 			if flags.asJSON {
