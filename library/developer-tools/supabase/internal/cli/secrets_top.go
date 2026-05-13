@@ -75,8 +75,7 @@ projects, and organizations tables; no live API calls.`,
 					COALESCE(p.name, '') AS project_name,
 					COALESCE(p.organization_id, '') AS org_id,
 					COALESCE(s.synced_at, '') AS synced_at,
-					COALESCE(json_extract(s.data, '$.updated_at'), '') AS updated_at,
-					COALESCE(json_extract(s.data, '$.value'), '') AS has_value
+					COALESCE(json_extract(s.data, '$.updated_at'), '') AS updated_at
 				FROM secrets s
 				LEFT JOIN projects p ON s.projects_id = p.id
 				WHERE json_extract(s.data, '$.name') = ?
@@ -98,11 +97,9 @@ projects, and organizations tables; no live API calls.`,
 			var results []match
 			for rows.Next() {
 				var m match
-				var hasValue string
-				if err := rows.Scan(&m.ProjectRef, &m.ProjectName, &m.OrgID, &m.SyncedAt, &m.UpdatedAt, &hasValue); err != nil {
+				if err := rows.Scan(&m.ProjectRef, &m.ProjectName, &m.OrgID, &m.SyncedAt, &m.UpdatedAt); err != nil {
 					continue
 				}
-				_ = hasValue
 				results = append(results, m)
 			}
 

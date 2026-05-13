@@ -2,12 +2,10 @@
 package cli
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/spf13/cobra"
 )
@@ -70,11 +68,8 @@ fetch being removed April 2026.`,
 				return err
 			}
 
-			ctx, cancel := context.WithTimeout(cmd.Context(), 30*time.Second)
-			_ = ctx
-			cancel()
-
-			// pp:client-call — real Management API GET
+			// pp:client-call — real Management API GET (request timeout enforced
+			// via the http.Client built from --timeout in flags.newClient).
 			path := fmt.Sprintf("/v1/projects/%s/api/rest", projectRef)
 			raw, err := c.Get(path, nil)
 			if err != nil {

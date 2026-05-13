@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"strings"
 	"time"
 
@@ -97,9 +98,11 @@ via SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY / SUPABASE_SERVICE_ROLE_KEY.`,
 					continue
 				}
 				usage := bucketUsage{Name: b.Name, ID: b.ID, Public: b.Public}
-				// POST /storage/v1/object/list/<bucket> with {prefix:"", limit:N, offset:0}
+				// POST /storage/v1/object/list/<bucket> with {prefix:"", limit:N, offset:0}.
+				// Bucket names may contain characters that require percent-encoding
+				// (spaces, '+', '#'); url.PathEscape keeps the request URL valid.
 				reqBody := fmt.Sprintf(`{"prefix":"","limit":%d,"offset":0}`, maxObjects)
-				path := fmt.Sprintf("/storage/v1/object/list/%s", b.Name)
+				path := fmt.Sprintf("/storage/v1/object/list/%s", url.PathEscape(b.Name))
 				// pp:client-call — real Storage POST via project surface (object list per bucket)
 				listBody, _, listErr := ps.do(ctx, "POST", path, strings.NewReader(reqBody), true)
 				if listErr != nil {
