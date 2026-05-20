@@ -31,6 +31,15 @@ walks.`,
 			if dryRunOK(flags) {
 				return nil
 			}
+			// PATCH: Reject malformed --since values instead of silently using the default baseline.
+			var sinceT time.Time
+			if since != "" {
+				var parseErr error
+				sinceT, parseErr = time.Parse("2006-01-02", since)
+				if parseErr != nil {
+					return fmt.Errorf("--since must be YYYY-MM-DD: %w", parseErr)
+				}
+			}
 			if len(types) == 0 {
 				for _, t := range rappi.StoreTypes {
 					types = append(types, t.Slug)
@@ -41,11 +50,6 @@ walks.`,
 				return err
 			}
 			defer db.Close()
-
-			var sinceT time.Time
-			if since != "" {
-				sinceT, _ = time.Parse("2006-01-02", since)
-			}
 
 			type delta struct {
 				StoreType  string `json:"store_type"`

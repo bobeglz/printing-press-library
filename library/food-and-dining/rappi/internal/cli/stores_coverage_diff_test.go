@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -58,6 +59,20 @@ func TestSelectStoreCoverageBaselineSnapshot_UsesSinceCutoff(t *testing.T) {
 	baselineID := selectStoreCoverageBaselineSnapshot(db, snaps, sinceT)
 	if baselineID != "market/all/2026-05-01T00:00:00Z" {
 		t.Fatalf("baselineID = %q, want latest snapshot before since", baselineID)
+	}
+}
+
+func TestStoresCoverageDiffRejectsInvalidSince(t *testing.T) {
+	cmd := newStoresCoverageDiffCmd(&rootFlags{})
+	cmd.SilenceUsage = true
+	cmd.SetArgs([]string{"--since", "2026/05/01"})
+
+	err := cmd.Execute()
+	if err == nil {
+		t.Fatal("expected invalid --since to fail")
+	}
+	if !strings.Contains(err.Error(), "--since must be YYYY-MM-DD") {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
