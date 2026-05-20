@@ -6,12 +6,13 @@
   "patches": [
     {
       "id": "review-feedback-hardening",
-      "summary": "Fix Rappi review findings around opening-hour windows, store adjacency geo, coverage-diff baselines, path slug validation, and ListIDs SQL table selection.",
+      "summary": "Fix Rappi review findings around opening-hour windows, store adjacency geo, diff baselines and inputs, path slug validation, and ListIDs SQL table selection.",
       "reason": "The published Rappi CLI needed narrow post-print fixes for Greptile PR feedback before merge.",
       "files": [
         "README.md",
         "SKILL.md",
         "internal/cli/novel_helpers.go",
+        "internal/cli/restaurants_diff.go",
         "internal/cli/restaurants_open.go",
         "internal/cli/stores_coverage_diff.go",
         "internal/cli/stores_adjacency.go",

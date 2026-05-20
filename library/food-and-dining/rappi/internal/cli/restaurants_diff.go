@@ -34,6 +34,15 @@ without diff; the second and later runs answer "what's new this week".`,
 			if dryRunOK(flags) {
 				return nil
 			}
+			// PATCH: Reject malformed --since values instead of silently using the default baseline.
+			var sinceT time.Time
+			if since != "" {
+				var parseErr error
+				sinceT, parseErr = time.Parse("2006-01-02", since)
+				if parseErr != nil {
+					return fmt.Errorf("--since must be YYYY-MM-DD: %w", parseErr)
+				}
+			}
 			db, _, err := openLocalStore(cmd.Context())
 			if err != nil {
 				return err
@@ -57,10 +66,6 @@ without diff; the second and later runs answer "what's new this week".`,
 			snaps, err := listRestaurantSnapshots(db, city, category)
 			if err != nil {
 				return err
-			}
-			var sinceT time.Time
-			if since != "" {
-				sinceT, _ = time.Parse("2006-01-02", since)
 			}
 			var baseline []rappi.RestaurantListItem
 			var baselineAt time.Time
