@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/source/rappi"
+	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/store"
 
 	"github.com/spf13/cobra"
 )
@@ -64,16 +65,10 @@ walks.`,
 					out = append(out, delta{StoreType: t})
 					continue
 				}
-				// Latest = newest snapshot; baseline = newest snapshot older than --since
+				// PATCH: Keep the default baseline one snapshot behind latest.
 				latestID := snaps[len(snaps)-1]
 				latestItems, latestAt, _ := loadStoreSnapshot(db, latestID)
-				var baselineID string
-				for _, id := range snaps {
-					_, takenAt, _ := loadStoreSnapshot(db, id)
-					if sinceT.IsZero() || !takenAt.After(sinceT) {
-						baselineID = id
-					}
-				}
+				baselineID := selectStoreCoverageBaselineSnapshot(db, snaps, sinceT)
 				if baselineID == "" {
 					out = append(out, delta{
 						StoreType: t, After: len(latestItems),
@@ -106,4 +101,25 @@ walks.`,
 	cmd.Flags().StringVar(&since, "since", "", "Compare against the latest snapshot taken before this date (YYYY-MM-DD)")
 	cmd.Flags().StringSliceVar(&types, "types", nil, "Store types to include")
 	return cmd
+}
+
+func selectStoreCoverageBaselineSnapshot(db *store.Store, snaps []string, sinceT time.Time) string {
+	if len(snaps) < 2 {
+		return ""
+	}
+	candidates := snaps[:len(snaps)-1]
+	if sinceT.IsZero() {
+		return candidates[len(candidates)-1]
+	}
+	var baselineID string
+	for _, id := range candidates {
+		_, takenAt, err := loadStoreSnapshot(db, id)
+		if err != nil {
+			continue
+		}
+		if !takenAt.After(sinceT) {
+			baselineID = id
+		}
+	}
+	return baselineID
 }
