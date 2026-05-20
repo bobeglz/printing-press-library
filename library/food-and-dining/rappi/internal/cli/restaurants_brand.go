@@ -13,6 +13,27 @@ import (
 	"github.com/spf13/cobra"
 )
 
+type restaurantBrandHit struct {
+	City        string  `json:"city"`
+	Category    string  `json:"category,omitempty"`
+	Name        string  `json:"name"`
+	URL         string  `json:"url"`
+	RatingValue float64 `json:"rating,omitempty"`
+	RatingCount int     `json:"review_count,omitempty"`
+}
+
+func newRestaurantBrandHit(city string, r rappi.RestaurantListItem) restaurantBrandHit {
+	return restaurantBrandHit{
+		City: city,
+		// PATCH: Brand scans city pages, so use scraped cuisine instead of the empty selector category.
+		Category:    r.ServesCuisine,
+		Name:        r.Name,
+		URL:         r.URL,
+		RatingValue: r.RatingValue,
+		RatingCount: r.RatingCount,
+	}
+}
+
 func newRestaurantsBrandCmd(flags *rootFlags) *cobra.Command {
 	var (
 		brandName string
@@ -41,15 +62,7 @@ and asking "where does X expand in MX".`,
 			}
 			// PATCH: Reuse the configured Rappi client across city fetches.
 			rappiClient := newRappiHTMLFetcher(flags)
-			type hit struct {
-				City        string  `json:"city"`
-				Category    string  `json:"category,omitempty"`
-				Name        string  `json:"name"`
-				URL         string  `json:"url"`
-				RatingValue float64 `json:"rating,omitempty"`
-				RatingCount int     `json:"review_count,omitempty"`
-			}
-			out := []hit{}
+			out := []restaurantBrandHit{}
 			var mu sync.Mutex
 			var wg sync.WaitGroup
 			sem := make(chan struct{}, 4)
@@ -71,7 +84,7 @@ and asking "where does X expand in MX".`,
 						if !strings.Contains(strings.ToLower(r.Name), needle) {
 							continue
 						}
-						h := hit{City: c, Category: r.Category, Name: r.Name, URL: r.URL, RatingValue: r.RatingValue, RatingCount: r.RatingCount}
+						h := newRestaurantBrandHit(c, r)
 						mu.Lock()
 						out = append(out, h)
 						mu.Unlock()
