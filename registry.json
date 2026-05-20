@@ -1416,6 +1416,30 @@
       }
     },
     {
+      "name": "lunch-money",
+      "category": "payments",
+      "api": "Lunch Money",
+      "description": "A Go CLI for Lunch Money's official v2 OpenAPI — offline SQLite store, subscription detection, and bulk smart...",
+      "path": "library/payments/lunch-money",
+      "printer": "salmonumbrella",
+      "printer_name": "salmonumbrella",
+      "mcp": {
+        "binary": "lunch-money-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 59,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "LUNCHMONEY_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "mailchimp",
       "category": "marketing",
       "api": "Mailchimp Marketing",
