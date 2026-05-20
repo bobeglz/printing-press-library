@@ -6,6 +6,7 @@ package cli
 import (
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestValidateRappiPathSlug(t *testing.T) {
@@ -34,5 +35,26 @@ func TestStoresAdjacencyRequiresFetchDetail(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "--fetch-detail is required") {
 		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewRappiHTMLFetcherUsesRootRequestSettings(t *testing.T) {
+	fetcher := newRappiHTMLFetcher(&rootFlags{
+		timeout:   7 * time.Second,
+		rateLimit: 0.75,
+	})
+	if fetcher.client.HTTPClient.Timeout != 7*time.Second {
+		t.Fatalf("timeout = %s, want 7s", fetcher.client.HTTPClient.Timeout)
+	}
+	if got := fetcher.client.Limiter.Rate(); got != 0.75 {
+		t.Fatalf("rate limit = %v, want 0.75", got)
+	}
+
+	disabled := newRappiHTMLFetcher(&rootFlags{
+		timeout:   3 * time.Second,
+		rateLimit: 0,
+	})
+	if disabled.client.Limiter != nil {
+		t.Fatalf("rate limiter = %#v, want nil when disabled", disabled.client.Limiter)
 	}
 }

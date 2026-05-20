@@ -39,6 +39,8 @@ Surfaces fusion places and ambiguously-categorized chains.`,
 					cats = append(cats, c.Slug)
 				}
 			}
+			// PATCH: Reuse the configured Rappi client across category fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
 			byURL := map[string]map[string]bool{} // URL -> category set
 			byURLName := map[string]string{}      // URL -> first-seen name
 			ratingByURL := map[string]float64{}   // URL -> best rating seen
@@ -51,7 +53,7 @@ Surfaces fusion places and ambiguously-categorized chains.`,
 					defer wg.Done()
 					sem <- struct{}{}
 					defer func() { <-sem }()
-					rows, err := fetchRestaurantListPage(cmd.Context(), city, cat)
+					rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, cat)
 					if err != nil {
 						stderrf("warning: %s/%s fetch: %v\n", city, cat, err)
 						return

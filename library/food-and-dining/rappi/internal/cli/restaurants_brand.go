@@ -39,6 +39,8 @@ and asking "where does X expand in MX".`,
 			if len(cities) == 0 {
 				cities = rappi.CitySlugs()
 			}
+			// PATCH: Reuse the configured Rappi client across city fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
 			type hit struct {
 				City        string  `json:"city"`
 				Category    string  `json:"category,omitempty"`
@@ -57,7 +59,7 @@ and asking "where does X expand in MX".`,
 					defer wg.Done()
 					sem <- struct{}{}
 					defer func() { <-sem }()
-					rows, err := fetchRestaurantListPage(cmd.Context(), c, "")
+					rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, c, "")
 					if err != nil {
 						stderrf("warning: %s fetch failed: %v\n", c, err)
 						return

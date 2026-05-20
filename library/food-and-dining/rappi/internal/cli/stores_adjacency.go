@@ -48,16 +48,18 @@ func newStoresAdjacencyCmd(flags *rootFlags) *cobra.Command {
 				// PATCH: Require detail-page coordinates before running proximity filters.
 				return fmt.Errorf("--fetch-detail is required because /tiendas/tipo pages do not include store coordinates")
 			}
-			a, err := fetchStoreListPage(cmd.Context(), typeA)
+			// PATCH: Reuse the configured Rappi client across list and detail fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			a, err := fetchStoreListPage(cmd.Context(), rappiClient, typeA)
 			if err != nil {
 				return err
 			}
-			b, err := fetchStoreListPage(cmd.Context(), typeB)
+			b, err := fetchStoreListPage(cmd.Context(), rappiClient, typeB)
 			if err != nil {
 				return err
 			}
-			a = fetchStoreDetailsForAdjacency(cmd.Context(), a, typeA, city)
-			b = fetchStoreDetailsForAdjacency(cmd.Context(), b, typeB, city)
+			a = fetchStoreDetailsForAdjacency(cmd.Context(), rappiClient, a, typeA, city)
+			b = fetchStoreDetailsForAdjacency(cmd.Context(), rappiClient, b, typeB, city)
 			type adj struct {
 				StoreA     string  `json:"store_a"`
 				StoreB     string  `json:"store_b"`
@@ -112,14 +114,14 @@ func newStoresAdjacencyCmd(flags *rootFlags) *cobra.Command {
 	return cmd
 }
 
-func fetchStoreDetailsForAdjacency(ctx context.Context, stores []rappi.Store, storeType, city string) []rappi.Store {
+func fetchStoreDetailsForAdjacency(ctx context.Context, client rappiHTMLFetcher, stores []rappi.Store, storeType, city string) []rappi.Store {
 	out := make([]rappi.Store, 0, len(stores))
 	for _, s := range stores {
 		idSlug := idSlugFromURL(s.URL)
 		if idSlug == "" {
 			continue
 		}
-		detail, err := fetchStoreDetail(ctx, idSlug, storeType, city)
+		detail, err := fetchStoreDetail(ctx, client, idSlug, storeType, city)
 		if err != nil {
 			stderrf("warning: detail fetch failed for %s: %v\n", s.URL, err)
 			continue

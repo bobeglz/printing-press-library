@@ -36,7 +36,9 @@ ratings outranks well-established ones with thousands of reviews.`,
 			if dryRunOK(flags) {
 				return nil
 			}
-			rows, err := fetchRestaurantListPage(cmd.Context(), city, category)
+			// PATCH: Use the root request settings for live Rappi fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, category)
 			if err != nil {
 				return err
 			}

@@ -48,7 +48,9 @@ pages live for each candidate restaurant.`,
 			if weekday == "" {
 				weekday = strings.ToLower(time.Now().Weekday().String())
 			}
-			rows, err := fetchRestaurantListPage(cmd.Context(), city, category)
+			// PATCH: Reuse the configured Rappi client across list and detail fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, category)
 			if err != nil {
 				return err
 			}
@@ -65,7 +67,7 @@ pages live for each candidate restaurant.`,
 					// without --fetch-detail we cannot evaluate hours
 					continue
 				}
-				det, err := fetchRestaurantDetail(cmd.Context(), r.ID+"-"+slugFromURL(r.URL), city, category)
+				det, err := fetchRestaurantDetail(cmd.Context(), rappiClient, r.ID+"-"+slugFromURL(r.URL), city, category)
 				if err != nil {
 					stderrf("warning: detail fetch failed for %s: %v\n", r.URL, err)
 					continue

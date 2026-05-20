@@ -43,7 +43,9 @@ is recommended).`,
 			if lat == 0 && lng == 0 {
 				lat, lng = resolveCityLatLng(city)
 			}
-			rows, err := fetchRestaurantListPage(cmd.Context(), city, category)
+			// PATCH: Reuse the configured Rappi client across list and detail fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, category)
 			if err != nil {
 				return err
 			}
@@ -64,7 +66,7 @@ is recommended).`,
 				}
 				var rlat, rlng float64
 				if fetchDetail {
-					det, err := fetchRestaurantDetail(cmd.Context(), r.ID+"-"+slugFromURL(r.URL), city, category)
+					det, err := fetchRestaurantDetail(cmd.Context(), rappiClient, r.ID+"-"+slugFromURL(r.URL), city, category)
 					if err != nil {
 						stderrf("warning: detail fetch failed for %s: %v\n", r.URL, err)
 						continue

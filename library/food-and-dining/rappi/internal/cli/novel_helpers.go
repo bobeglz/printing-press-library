@@ -6,22 +6,55 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
+	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/source/rappi"
 	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/store"
 )
 
 var rappiPathSlugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
 
+type rappiHTMLFetcher interface {
+	FetchHTML(context.Context, string) ([]byte, error)
+}
+
+type synchronizedRappiFetcher struct {
+	mu     sync.Mutex
+	client *rappi.Client
+}
+
+// PATCH: Share one configured Rappi client per command invocation.
+func newRappiHTMLFetcher(flags *rootFlags) *synchronizedRappiFetcher {
+	c := rappi.NewClient()
+	if flags != nil {
+		if flags.timeout > 0 {
+			if c.HTTPClient == nil {
+				c.HTTPClient = &http.Client{}
+			}
+			c.HTTPClient.Timeout = flags.timeout
+		}
+		c.Limiter = cliutil.NewAdaptiveLimiter(flags.rateLimit)
+	}
+	return &synchronizedRappiFetcher{client: c}
+}
+
+func (f *synchronizedRappiFetcher) FetchHTML(ctx context.Context, path string) ([]byte, error) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.client.FetchHTML(ctx, path)
+}
+
 // fetchRestaurantListPage retrieves and parses a single restaurants list
 // page for a (city[, category]) selector. Used by every novel command
 // that ranks/filters/joins across multiple restaurants in a city.
-func fetchRestaurantListPage(ctx context.Context, city, category string) ([]rappi.RestaurantListItem, error) {
+func fetchRestaurantListPage(ctx context.Context, client rappiHTMLFetcher, city, category string) ([]rappi.RestaurantListItem, error) {
 	// PATCH: Validate Rappi path slugs before building fetch URLs.
 	if err := validateRappiPathSlug("city", city); err != nil {
 		return nil, err
@@ -33,14 +66,13 @@ func fetchRestaurantListPage(ctx context.Context, city, category string) ([]rapp
 		}
 		category = strings.TrimSpace(category)
 	}
-	c := rappi.NewClient()
 	var path string
 	if category == "" {
 		path = "/" + city + "/restaurantes"
 	} else {
 		path = "/" + city + "/restaurantes/category/" + category
 	}
-	html, err := c.FetchHTML(ctx, path)
+	html, err := client.FetchHTML(ctx, path)
 	if err != nil {
 		return nil, err
 	}
@@ -49,13 +81,12 @@ func fetchRestaurantListPage(ctx context.Context, city, category string) ([]rapp
 
 // fetchRestaurantDetail retrieves a restaurant detail page and parses
 // the Restaurant JSON-LD block.
-func fetchRestaurantDetail(ctx context.Context, idSlug, city, category string) (*rappi.Restaurant, error) {
+func fetchRestaurantDetail(ctx context.Context, client rappiHTMLFetcher, idSlug, city, category string) (*rappi.Restaurant, error) {
 	if err := validateRappiPathSlug("restaurant id slug", idSlug); err != nil {
 		return nil, err
 	}
 	idSlug = strings.TrimSpace(idSlug)
-	c := rappi.NewClient()
-	html, err := c.FetchHTML(ctx, "/restaurantes/"+idSlug)
+	html, err := client.FetchHTML(ctx, "/restaurantes/"+idSlug)
 	if err != nil {
 		return nil, err
 	}
@@ -69,13 +100,12 @@ func fetchRestaurantDetail(ctx context.Context, idSlug, city, category string) (
 }
 
 // fetchStoreListPage retrieves and parses a single store-by-type list page.
-func fetchStoreListPage(ctx context.Context, storeType string) ([]rappi.Store, error) {
+func fetchStoreListPage(ctx context.Context, client rappiHTMLFetcher, storeType string) ([]rappi.Store, error) {
 	if err := validateRappiPathSlug("store type", storeType); err != nil {
 		return nil, err
 	}
 	storeType = strings.TrimSpace(storeType)
-	c := rappi.NewClient()
-	html, err := c.FetchHTML(ctx, "/tiendas/tipo/"+storeType)
+	html, err := client.FetchHTML(ctx, "/tiendas/tipo/"+storeType)
 	if err != nil {
 		return nil, err
 	}
@@ -83,14 +113,13 @@ func fetchStoreListPage(ctx context.Context, storeType string) ([]rappi.Store, e
 }
 
 // fetchStoreDetail retrieves a store detail page and parses its Store JSON-LD block.
-func fetchStoreDetail(ctx context.Context, idSlug, storeType, city string) (*rappi.Store, error) {
+func fetchStoreDetail(ctx context.Context, client rappiHTMLFetcher, idSlug, storeType, city string) (*rappi.Store, error) {
 	// PATCH: Store adjacency uses detail-page geo instead of centroid placeholders.
 	if err := validateRappiPathSlug("store id slug", idSlug); err != nil {
 		return nil, err
 	}
 	idSlug = strings.TrimSpace(idSlug)
-	c := rappi.NewClient()
-	html, err := c.FetchHTML(ctx, "/tiendas/"+idSlug)
+	html, err := client.FetchHTML(ctx, "/tiendas/"+idSlug)
 	if err != nil {
 		return nil, err
 	}

@@ -49,7 +49,9 @@ without diff; the second and later runs answer "what's new this week".`,
 			}
 			defer db.Close()
 
-			current, err := fetchRestaurantListPage(cmd.Context(), city, category)
+			// PATCH: Use the root request settings for live Rappi fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			current, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, category)
 			if err != nil {
 				return err
 			}

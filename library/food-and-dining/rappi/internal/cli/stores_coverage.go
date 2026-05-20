@@ -44,6 +44,8 @@ for retail-analyst week-over-week coverage tracking.`,
 			var mu sync.Mutex
 			var wg sync.WaitGroup
 			sem := make(chan struct{}, 3)
+			// PATCH: Reuse the configured Rappi client across store-type fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
 			db, _, _ := openLocalStore(cmd.Context())
 			if db != nil {
 				defer db.Close()
@@ -54,7 +56,7 @@ for retail-analyst week-over-week coverage tracking.`,
 					defer wg.Done()
 					sem <- struct{}{}
 					defer func() { <-sem }()
-					stores, err := fetchStoreListPage(cmd.Context(), t)
+					stores, err := fetchStoreListPage(cmd.Context(), rappiClient, t)
 					if err != nil {
 						stderrf("warning: %s fetch: %v\n", t, err)
 						return

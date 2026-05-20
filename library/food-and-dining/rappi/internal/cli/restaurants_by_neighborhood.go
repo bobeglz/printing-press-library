@@ -35,7 +35,9 @@ populated upstream (likely none, in the absence of a prior sync).`,
 			if dryRunOK(flags) {
 				return nil
 			}
-			rows, err := fetchRestaurantListPage(cmd.Context(), city, category)
+			// PATCH: Reuse the configured Rappi client across list and detail fetches.
+			rappiClient := newRappiHTMLFetcher(flags)
+			rows, err := fetchRestaurantListPage(cmd.Context(), rappiClient, city, category)
 			if err != nil {
 				return err
 			}
@@ -54,7 +56,7 @@ populated upstream (likely none, in the absence of a prior sync).`,
 				neighborhood := ""
 				address := ""
 				if fetchDetail {
-					det, err := fetchRestaurantDetail(cmd.Context(), r.ID+"-"+slugFromURL(r.URL), city, category)
+					det, err := fetchRestaurantDetail(cmd.Context(), rappiClient, r.ID+"-"+slugFromURL(r.URL), city, category)
 					if err != nil {
 						stderrf("warning: detail fetch for %s: %v\n", r.URL, err)
 						continue
