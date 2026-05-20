@@ -109,28 +109,71 @@ func parseHM(s string) (time.Time, error) {
 	return t, nil
 }
 
+// PATCH: Compare opening windows by minute-of-day so midnight crossings work.
 func isOpenAt(hours []rappi.OpeningHoursSpec, weekday string, t time.Time) (bool, string) {
 	wd := strings.ToLower(weekday)
+	previousWd := previousWeekday(wd)
+	targetMinute := minuteOfDay(t)
 	for _, h := range hours {
-		if strings.ToLower(h.DayOfWeek) != wd {
+		hwd := strings.ToLower(h.DayOfWeek)
+		opensMinute, ok := parseOpeningMinute(h.Opens)
+		if !ok {
 			continue
 		}
-		opens, err1 := time.Parse("15:04:05", h.Opens)
-		if err1 != nil {
-			opens, err1 = time.Parse("15:04", h.Opens)
-		}
-		closes, err2 := time.Parse("15:04:05", h.Closes)
-		if err2 != nil {
-			closes, err2 = time.Parse("15:04", h.Closes)
-		}
-		if err1 != nil || err2 != nil {
+		closesMinute, ok := parseOpeningMinute(h.Closes)
+		if !ok {
 			continue
 		}
-		if (t.Equal(opens) || t.After(opens)) && t.Before(closes) {
+		if openingWindowMatchesWeekday(hwd, wd, previousWd, targetMinute, opensMinute, closesMinute) {
 			return true, fmt.Sprintf("%s %s-%s", h.DayOfWeek, h.Opens, h.Closes)
 		}
 	}
 	return false, ""
+}
+
+func parseOpeningMinute(s string) (int, bool) {
+	for _, layout := range []string{"15:04:05", "15:04"} {
+		t, err := time.Parse(layout, strings.TrimSpace(s))
+		if err == nil {
+			return minuteOfDay(t), true
+		}
+	}
+	return 0, false
+}
+
+func minuteOfDay(t time.Time) int {
+	return t.Hour()*60 + t.Minute()
+}
+
+func openingWindowMatchesWeekday(hwd, wd, previousWd string, target, opens, closes int) bool {
+	if opens == closes {
+		return hwd == wd
+	}
+	if opens < closes {
+		return hwd == wd && target >= opens && target < closes
+	}
+	return (hwd == wd && target >= opens) || (hwd == previousWd && target < closes)
+}
+
+func previousWeekday(weekday string) string {
+	switch strings.ToLower(weekday) {
+	case "monday":
+		return "sunday"
+	case "tuesday":
+		return "monday"
+	case "wednesday":
+		return "tuesday"
+	case "thursday":
+		return "wednesday"
+	case "friday":
+		return "thursday"
+	case "saturday":
+		return "friday"
+	case "sunday":
+		return "saturday"
+	default:
+		return ""
+	}
 }
 
 func slugFromURL(url string) string {

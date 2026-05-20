@@ -3,34 +3,37 @@
 package cli
 
 import (
+	"context"
 	"fmt"
 	"sort"
+
+	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/source/rappi"
 
 	"github.com/spf13/cobra"
 )
 
 func newStoresAdjacencyCmd(flags *rootFlags) *cobra.Command {
 	var (
-		typeA  string
-		typeB  string
-		within float64
-		city   string
-		limit  int
+		typeA       string
+		typeB       string
+		within      float64
+		city        string
+		fetchDetail bool
+		limit       int
 	)
 	cmd := &cobra.Command{
 		Use:   "adjacency",
 		Short: "Stores of type A within a Haversine radius of stores of type B",
 		Long: `Cross-store-type proximity query: find every store of --type A
-within --within-km kilometers of any store of --of-type B. Useful
-for concierge-style "one-stop trip" planning (e.g., a pharmacy
-within 1km of a supermarket).
+	within --within-km kilometers of any store of --of-type B. Useful
+	for concierge-style "one-stop trip" planning (e.g., a pharmacy
+	within 1km of a supermarket).
 
-Rappi's SSR pages return store position+name+url without geo
-coordinates, so this command needs each store's detail page
-fetched to obtain lat/lng. Without --fetch-detail the matrix
-falls back to (city-centroid, city-centroid) — useful only as a
-smoke test.`,
-		Example:     "  rappi-pp-cli stores adjacency --type farmatodo --of-type market --within-km 1 --city ciudad-de-mexico --agent",
+	Rappi's SSR pages return store position+name+url without geo
+	coordinates, so this command needs each store's detail page
+	fetched to obtain lat/lng. Set --fetch-detail to fetch those detail
+	pages before applying --within-km.`,
+		Example:     "  rappi-pp-cli stores adjacency --type farmatodo --of-type market --within-km 1 --city ciudad-de-mexico --fetch-detail --agent",
 		Annotations: map[string]string{"mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if typeA == "" || typeB == "" {
@@ -41,6 +44,10 @@ smoke test.`,
 			if dryRunOK(flags) {
 				return nil
 			}
+			if !fetchDetail {
+				// PATCH: Require detail-page coordinates before running proximity filters.
+				return fmt.Errorf("--fetch-detail is required because /tiendas/tipo pages do not include store coordinates")
+			}
 			a, err := fetchStoreListPage(cmd.Context(), typeA)
 			if err != nil {
 				return err
@@ -49,21 +56,8 @@ smoke test.`,
 			if err != nil {
 				return err
 			}
-			// Without per-store detail pages we don't have real lat/lng.
-			// Use the city centroid as an approximation; the result is
-			// useful as a structural smoke test but not a real adjacency
-			// measurement. Documented in the command Long.
-			lat, lng := resolveCityLatLng(city)
-			for i := range a {
-				a[i].Latitude = lat
-				a[i].Longitude = lng
-				a[i].City = city
-			}
-			for i := range b {
-				b[i].Latitude = lat
-				b[i].Longitude = lng
-				b[i].City = city
-			}
+			a = fetchStoreDetailsForAdjacency(cmd.Context(), a, typeA, city)
+			b = fetchStoreDetailsForAdjacency(cmd.Context(), b, typeB, city)
 			type adj struct {
 				StoreA     string  `json:"store_a"`
 				StoreB     string  `json:"store_b"`
@@ -73,8 +67,14 @@ smoke test.`,
 			}
 			out := []adj{}
 			for _, sa := range a {
+				if !storeHasCoordinates(sa) {
+					continue
+				}
 				for _, sb := range b {
 					if sa.URL == sb.URL {
+						continue
+					}
+					if !storeHasCoordinates(sb) {
 						continue
 					}
 					d := haversineKm(sa.Latitude, sa.Longitude, sb.Latitude, sb.Longitude)
@@ -92,7 +92,6 @@ smoke test.`,
 			if limit > 0 && len(out) > limit {
 				out = out[:limit]
 			}
-			stderrf("note: adjacency uses city centroid for both A and B (no per-store geo on /tiendas/tipo SSR). v0.2 will fetch detail pages.\n")
 			if flags.asJSON || !isTerminal(cmd.OutOrStdout()) {
 				return emitNovelJSON(cmd.OutOrStdout(), out, flags)
 			}
@@ -107,7 +106,38 @@ smoke test.`,
 	cmd.Flags().StringVar(&typeA, "type", "farmatodo", "Primary store type (e.g. farmatodo, market)")
 	cmd.Flags().StringVar(&typeB, "of-type", "market", "Reference store type to be adjacent to")
 	cmd.Flags().Float64Var(&within, "within-km", 1.0, "Maximum Haversine distance in kilometers")
-	cmd.Flags().StringVar(&city, "city", "ciudad-de-mexico", "City slug for centroid fallback")
+	cmd.Flags().StringVar(&city, "city", "ciudad-de-mexico", "City slug for detail-page tagging")
+	cmd.Flags().BoolVar(&fetchDetail, "fetch-detail", false, "Fetch each store's detail page to read geo coordinates")
 	cmd.Flags().IntVar(&limit, "limit", 50, "Max pairs to return")
 	return cmd
+}
+
+func fetchStoreDetailsForAdjacency(ctx context.Context, stores []rappi.Store, storeType, city string) []rappi.Store {
+	out := make([]rappi.Store, 0, len(stores))
+	for _, s := range stores {
+		idSlug := idSlugFromURL(s.URL)
+		if idSlug == "" {
+			continue
+		}
+		detail, err := fetchStoreDetail(ctx, idSlug, storeType, city)
+		if err != nil {
+			stderrf("warning: detail fetch failed for %s: %v\n", s.URL, err)
+			continue
+		}
+		if detail.Name == "" {
+			detail.Name = s.Name
+		}
+		if detail.URL == "" {
+			detail.URL = s.URL
+		}
+		if detail.ID == "" {
+			detail.ID = s.ID
+		}
+		out = append(out, *detail)
+	}
+	return out
+}
+
+func storeHasCoordinates(s rappi.Store) bool {
+	return s.Latitude != 0 || s.Longitude != 0
 }

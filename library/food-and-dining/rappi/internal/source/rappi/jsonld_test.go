@@ -101,8 +101,8 @@ func TestParseRestaurantList(t *testing.T) {
 
 func TestParseStoreList(t *testing.T) {
 	html := []byte(`<html>
-<script type="application/ld+json">{"@type":"ItemList","itemListElement":[
-  {"@type":"ListItem","position":1,"name":"La Comer","url":"https://www.rappi.com.mx/tiendas/1930163835-la-comer"},
+	<script type="application/ld+json">{"@type":"ItemList","itemListElement":[
+	  {"@type":"ListItem","position":1,"name":"La Comer","url":"https://www.rappi.com.mx/tiendas/1930163835-la-comer"},
   {"@type":"ListItem","position":2,"name":"Chedraui","url":"https://www.rappi.com.mx/tiendas/1930102470-chedraui"}
 ]}</script>
 </html>`)
@@ -115,6 +115,22 @@ func TestParseStoreList(t *testing.T) {
 	}
 	if stores[0].StoreType != "market" || stores[0].City != "ciudad-de-mexico" {
 		t.Errorf("Store[0] tag propagation failed: %+v", stores[0])
+	}
+}
+
+func TestParseStore(t *testing.T) {
+	html := []byte(`<html>
+	<script type="application/ld+json">{"@context":"http://schema.org/","@type":"Store","name":"La Comer","image":"https://images.rappi.com.mx/marketplace/la_comer.jpg","url":"https://www.rappi.com.mx/tiendas/1930163835-la-comer","geo":{"@type":"GeoCoordinates","latitude":19.37513545,"longitude":-99.16711854}}</script>
+	</html>`)
+	store := ParseStore(html)
+	if store == nil {
+		t.Fatal("ParseStore returned nil")
+	}
+	if store.ID != "1930163835" || store.Name != "La Comer" {
+		t.Fatalf("store identity = %+v", store)
+	}
+	if store.Latitude == 0 || store.Longitude == 0 {
+		t.Fatalf("store coordinates missing: %+v", store)
 	}
 }
 

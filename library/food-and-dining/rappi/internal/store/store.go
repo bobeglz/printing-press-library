@@ -23,6 +23,11 @@ import (
 
 var uuidPattern = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
 
+var listIDDomainTables = map[string]string{
+	"restaurant_snapshot": "restaurant_snapshot",
+	"store_snapshot":      "store_snapshot",
+}
+
 // IsUUID returns true if the input looks like a UUID.
 func IsUUID(s string) bool {
 	return uuidPattern.MatchString(s)
@@ -730,15 +735,17 @@ func (s *Store) GetSyncCursor(resourceType string) string {
 // ListIDs returns all IDs from a resource's domain table, or from the generic
 // resources table if no domain table exists. Used by dependent sync to iterate parents.
 func (s *Store) ListIDs(resourceType string) ([]string, error) {
-	// Try domain table first (tables are named after the resource type)
-	query := fmt.Sprintf("SELECT id FROM %s", resourceType)
-	rows, err := s.db.Query(query)
-	if err != nil {
-		// Fall back to generic resources table
+	// PATCH: Keep domain-table SQL on a fixed allowlist before formatting it.
+	var rows *sql.Rows
+	var err error
+	if table, ok := listIDDomainTables[resourceType]; ok {
+		rows, err = s.db.Query(fmt.Sprintf("SELECT id FROM %s", table))
+	}
+	if rows == nil || err != nil {
 		rows, err = s.db.Query("SELECT id FROM resources WHERE resource_type = ?", resourceType)
-		if err != nil {
-			return nil, err
-		}
+	}
+	if err != nil {
+		return nil, err
 	}
 	defer rows.Close()
 

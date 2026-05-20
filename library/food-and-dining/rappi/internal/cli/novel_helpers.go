@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"math"
 	"os"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -15,10 +16,23 @@ import (
 	"github.com/mvanhorn/printing-press-library/library/food-and-dining/rappi/internal/store"
 )
 
+var rappiPathSlugPattern = regexp.MustCompile(`^[a-z0-9-]+$`)
+
 // fetchRestaurantListPage retrieves and parses a single restaurants list
 // page for a (city[, category]) selector. Used by every novel command
 // that ranks/filters/joins across multiple restaurants in a city.
 func fetchRestaurantListPage(ctx context.Context, city, category string) ([]rappi.RestaurantListItem, error) {
+	// PATCH: Validate Rappi path slugs before building fetch URLs.
+	if err := validateRappiPathSlug("city", city); err != nil {
+		return nil, err
+	}
+	city = strings.TrimSpace(city)
+	if category != "" {
+		if err := validateRappiPathSlug("category", category); err != nil {
+			return nil, err
+		}
+		category = strings.TrimSpace(category)
+	}
 	c := rappi.NewClient()
 	var path string
 	if category == "" {
@@ -36,6 +50,10 @@ func fetchRestaurantListPage(ctx context.Context, city, category string) ([]rapp
 // fetchRestaurantDetail retrieves a restaurant detail page and parses
 // the Restaurant JSON-LD block.
 func fetchRestaurantDetail(ctx context.Context, idSlug, city, category string) (*rappi.Restaurant, error) {
+	if err := validateRappiPathSlug("restaurant id slug", idSlug); err != nil {
+		return nil, err
+	}
+	idSlug = strings.TrimSpace(idSlug)
 	c := rappi.NewClient()
 	html, err := c.FetchHTML(ctx, "/restaurantes/"+idSlug)
 	if err != nil {
@@ -52,12 +70,56 @@ func fetchRestaurantDetail(ctx context.Context, idSlug, city, category string) (
 
 // fetchStoreListPage retrieves and parses a single store-by-type list page.
 func fetchStoreListPage(ctx context.Context, storeType string) ([]rappi.Store, error) {
+	if err := validateRappiPathSlug("store type", storeType); err != nil {
+		return nil, err
+	}
+	storeType = strings.TrimSpace(storeType)
 	c := rappi.NewClient()
 	html, err := c.FetchHTML(ctx, "/tiendas/tipo/"+storeType)
 	if err != nil {
 		return nil, err
 	}
 	return rappi.ParseStoreList(html, storeType, ""), nil
+}
+
+// fetchStoreDetail retrieves a store detail page and parses its Store JSON-LD block.
+func fetchStoreDetail(ctx context.Context, idSlug, storeType, city string) (*rappi.Store, error) {
+	// PATCH: Store adjacency uses detail-page geo instead of centroid placeholders.
+	if err := validateRappiPathSlug("store id slug", idSlug); err != nil {
+		return nil, err
+	}
+	idSlug = strings.TrimSpace(idSlug)
+	c := rappi.NewClient()
+	html, err := c.FetchHTML(ctx, "/tiendas/"+idSlug)
+	if err != nil {
+		return nil, err
+	}
+	s := rappi.ParseStore(html)
+	if s == nil {
+		return nil, fmt.Errorf("no Store block found at /tiendas/%s", idSlug)
+	}
+	s.StoreType = storeType
+	s.City = city
+	return s, nil
+}
+
+func validateRappiPathSlug(name, value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return fmt.Errorf("%s cannot be empty", name)
+	}
+	if !rappiPathSlugPattern.MatchString(value) {
+		return fmt.Errorf("%s must contain only lowercase letters, numbers, and hyphens", name)
+	}
+	return nil
+}
+
+func idSlugFromURL(url string) string {
+	parts := strings.Split(strings.TrimRight(url, "/"), "/")
+	if len(parts) == 0 {
+		return ""
+	}
+	return parts[len(parts)-1]
 }
 
 // snapshotStore writes a list of restaurants under a snapshot key that

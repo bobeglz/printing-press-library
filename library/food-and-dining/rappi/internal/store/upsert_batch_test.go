@@ -257,3 +257,35 @@ func TestUpsertBatch_ExtractFailuresReturnedForPerItemMisses(t *testing.T) {
 		t.Fatalf("extractFailures = %d, want 2 (two items have no extractable PK)", extractFailures)
 	}
 }
+
+func TestListIDs_RejectsInterpolatedTableName(t *testing.T) {
+	dbPath := filepath.Join(t.TempDir(), "data.db")
+	s, err := Open(dbPath)
+	if err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	defer s.Close()
+
+	if err := s.Upsert("restaurant_snapshot", "snapshot-1", json.RawMessage(`{"id":"snapshot-1"}`)); err != nil {
+		t.Fatalf("upsert snapshot: %v", err)
+	}
+	if err := s.Upsert("other_resource", "other-1", json.RawMessage(`{"id":"other-1"}`)); err != nil {
+		t.Fatalf("upsert other: %v", err)
+	}
+
+	ids, err := s.ListIDs("restaurant_snapshot")
+	if err != nil {
+		t.Fatalf("ListIDs restaurant_snapshot: %v", err)
+	}
+	if len(ids) != 1 || ids[0] != "snapshot-1" {
+		t.Fatalf("restaurant_snapshot ids = %v, want [snapshot-1]", ids)
+	}
+
+	ids, err = s.ListIDs("restaurant_snapshot WHERE 1=1 --")
+	if err != nil {
+		t.Fatalf("ListIDs malicious resource type: %v", err)
+	}
+	if len(ids) != 0 {
+		t.Fatalf("malicious resource type returned ids %v, want none", ids)
+	}
+}

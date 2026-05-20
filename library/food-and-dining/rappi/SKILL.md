@@ -115,10 +115,10 @@ These capabilities aren't available in any other tool for this API.
   ```
 - **`stores adjacency`** — Stores of type A within a Haversine radius of stores of type B (e.g., pharmacies within 1km of supermarkets) — for concierge-style "one-stop trip" planning.
 
-  _Concierge agents picking a single trip route should reach for this over two independent radius queries._
+  _Concierge agents picking a single trip route should reach for this over two independent radius queries. Requires `--fetch-detail` because list pages do not include store coordinates._
 
   ```bash
-  rappi-pp-cli stores adjacency --type farmatodo --within-km 1 --of-type market --city ciudad-de-mexico --agent
+  rappi-pp-cli stores adjacency --type farmatodo --within-km 1 --of-type market --city ciudad-de-mexico --fetch-detail --agent
   ```
 
 ## Discovery Signals

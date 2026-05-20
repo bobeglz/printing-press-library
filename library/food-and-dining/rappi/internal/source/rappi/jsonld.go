@@ -266,6 +266,41 @@ func ParseStoreList(html []byte, storeType, city string) []Store {
 	return out
 }
 
+// ParseStore walks JSON-LD blocks looking for a Store detail block.
+func ParseStore(html []byte) *Store {
+	// PATCH: Parse Store JSON-LD detail blocks so adjacency can use real geo.
+	blocks := ExtractJSONLDBlocks(html)
+	for _, b := range blocks {
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			continue
+		}
+		if asString(m["@type"]) != "Store" {
+			continue
+		}
+		s := Store{
+			Name:  asString(m["name"]),
+			URL:   asString(m["url"]),
+			Image: asString(m["image"]),
+		}
+		if id := asString(m["@id"]); id != "" {
+			s.ID = idFromURL(id)
+		}
+		if s.ID == "" {
+			s.ID = idFromURL(s.URL)
+		}
+		if addr, ok := m["address"].(map[string]any); ok {
+			s.Address = asString(addr["streetAddress"])
+		}
+		if geo, ok := m["geo"].(map[string]any); ok {
+			s.Latitude = asFloat(geo["latitude"])
+			s.Longitude = asFloat(geo["longitude"])
+		}
+		return &s
+	}
+	return nil
+}
+
 // Helpers ---------------------------------------------------------------
 
 func asString(v any) string {
