@@ -44,7 +44,7 @@ def changed_library_paths(base_ref: str) -> list[Path]:
             "git",
             "diff",
             "--name-only",
-            "--diff-filter=AMR",
+            "--diff-filter=AMRC",
             f"{base_ref}...HEAD",
             "--",
             "library/",
