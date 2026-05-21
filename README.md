@@ -50,6 +50,8 @@ npx -y @mvanhorn/printing-press update espn
 npx -y @mvanhorn/printing-press uninstall espn --yes
 ```
 
+The npm installer package is being renamed to `@mvanhorn/printing-press-library` to avoid ambiguity with the generator repo. Until that package is published, this README keeps the currently published `@mvanhorn/printing-press` commands.
+
 While the catalog repository is private, live installer use requires `GITHUB_TOKEN` or `GH_TOKEN` for catalog and skill fetches, plus working private Go module access for `go install`.
 
 ## Focused skills
