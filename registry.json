@@ -1274,6 +1274,61 @@
       }
     },
     {
+      "name": "clockify",
+      "category": "productivity",
+      "api": "Clockify",
+      "description": "Every Clockify feature, plus a local time database that reconstructs your weekly timesheet, finds untracked gaps,...",
+      "search_terms": [
+        "clockify",
+        "clockify-pp-cli",
+        "Timesheet week reconstruct",
+        "timesheet week",
+        "Rebuild your whole weekly timesheet grid offline — every project and task across each weekday, with per-day, per-project, and weekly totals.",
+        "Timesheet gap finder",
+        "timesheet gaps",
+        "Find the days you are short — compares each day's tracked hours against your workday target and reports the missing time before you submit.",
+        "Billable leakage audit",
+        "audit billable",
+        "Catch the misfiled entries that silently drop off invoices — billable time with no project, billable tasks marked non-billable, and untagged billable entries.",
+        "Team submission tracker",
+        "team timesheets",
+        "See who has not submitted — diffs the full workspace user list against the week's approval requests so the people who forgot are visible, not invisible.",
+        "Where-did-my-week-go recap",
+        "recap",
+        "A ranked breakdown of where your tracked time went — by project, client, and tag, with the billable vs non-billable split and percentage of the total.",
+        "Unbilled billable balance",
+        "billable pending",
+        "The invoice-ready number — sums billable time not yet covered by any synced invoice, grouped by client.",
+        "Project budget burn",
+        "projects burn",
+        "Estimate vs actual per project — hours logged against the project's budget or time estimate, with percent consumed.",
+        "Full-text entry search",
+        "search",
+        "Full-text search across every synced time-entry description and project, task, client, and tag name.",
+        "Draft entries from logs and files",
+        "backfill",
+        "Reconstruct the time you forgot to track — turn a CSV export, your shell history, or a CLI session log into draft time entries, review them, then commit them to Clockify."
+      ],
+      "path": "library/productivity/clockify",
+      "printer": "melanson633",
+      "printer_name": "melanson633",
+      "mcp": {
+        "binary": "clockify-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 155,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "CLOCKIFY_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "cloud-run-admin",
       "category": "cloud",
       "api": "Google Cloud Run",
@@ -1973,6 +2028,46 @@
           "DOMINOS_TOKEN"
         ],
         "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
+      "name": "doordash",
+      "category": "commerce",
+      "api": "DoorDash",
+      "description": "Discovered API spec for doordash",
+      "search_terms": [
+        "doordash",
+        "doordash-pp-cli",
+        "Safe store search",
+        "search",
+        "Search DoorDash stores through the consumer GraphQL autocomplete feed without mutating cart or order state.",
+        "Menu and option inspection",
+        "menu",
+        "Fetch DoorDash store menus in a normalized shape without changing the cart.",
+        "Item customization discovery",
+        "item-options",
+        "Inspect item option groups and nested add-ons before adding anything to a cart.",
+        "Redacted account reads",
+        "recent-orders",
+        "Read recent DoorDash order summaries without placing a new order.",
+        "Guarded cart commands",
+        "cart",
+        "Expose cart inspection and mutations as a separately named, guarded command family rather than mixing them into search/menu reads."
+      ],
+      "path": "library/commerce/doordash",
+      "printer": "bricenice17",
+      "printer_name": "bricenice17",
+      "mcp": {
+        "binary": "doordash-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 19,
+        "public_tool_count": 0,
+        "auth_type": "cookie",
+        "env_vars": [],
+        "mcp_ready": "partial",
         "spec_format": "internal"
       }
     },
@@ -3696,6 +3791,51 @@
       "path": "library/project-management/jira",
       "printer": "neektza",
       "printer_name": "Nikica Jokic"
+    },
+    {
+      "name": "jobber",
+      "category": "sales-and-crm",
+      "api": "Jobber",
+      "description": "Jobber API surface as a read-only CLI and MCP peer (printing-press generated).",
+      "search_terms": [
+        "jobber",
+        "jobber-pp-cli",
+        "AR aging",
+        "Aged AR by client with 0-30/31-60/61-90/90+ buckets and per-bucket totals — every advisor's first question, offline and instantly.",
+        "Invoice payment trace",
+        "invoices trace",
+        "Per-invoice ledger comparing total, payments_total, deposit_amount, and the sum of payment records. --mismatched flags drift > $0.005.",
+        "Snapshot diff",
+        "Diff two labeled SQLite snapshots: new clients, status transitions, newly paid invoices, per-client open-AR deltas.",
+        "Full-text search",
+        "search",
+        "FTS5 search across every synced resource — clients, jobs, invoices, properties, quotes, visits, payment records — with no live API hit.",
+        "Read-only ad-hoc SQL",
+        "sql",
+        "Read-only ad-hoc SQL against the local store (write tokens rejected at the CLI layer + sqlite mode=ro) for anything the curated commands don't answer."
+      ],
+      "path": "library/sales-and-crm/jobber",
+      "printer": "melanson633",
+      "printer_name": "melanson633",
+      "mcp": {
+        "binary": "jobber-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 12,
+        "public_tool_count": 0,
+        "auth_type": "oauth2",
+        "env_vars": [
+          "JOBBER_CLIENT_ID",
+          "JOBBER_CLIENT_SECRET",
+          "JOBBER_CALLBACK_URL",
+          "JOBBER_ACCESS_TOKEN",
+          "JOBBER_REFRESH_TOKEN",
+          "JOBBER_GRAPHQL_VERSION"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal-yaml"
+      }
     },
     {
       "name": "kalshi",
@@ -8179,6 +8319,40 @@
         ],
         "mcp_ready": "full",
         "spec_format": "openapi3"
+      }
+    },
+    {
+      "name": "ucp",
+      "category": "commerce",
+      "api": "UCP",
+      "description": "A Go CLI for Google's Universal Commerce Protocol — talk to UCP merchants over REST or MCP",
+      "search_terms": [
+        "ucp",
+        "ucp-pp-cli",
+        "A Go CLI for Google's Universal Commerce Protocol — talk to UCP merchants over REST or MCP, search across them in parallel, build carts, and prep checkout drafts that an AP2 CLI can authorize.",
+        "UCP merchant manifest validator",
+        "check",
+        "Fetch `/.well-known/ucp` for any domain and return a graded report covering schema validity, advertised transports, and capability coverage — works against any merchant publishing a UCP manifest, including MCP-only Shopify-hosted stores.",
+        "Bundled pure-Go mock UCP merchant",
+        "mock serve",
+        "Spawn a UCP-compliant reference merchant locally (pure-Go, no external runtime) so `ucp check`, `search`, `cart`, and `checkout prep` flows work end-to-end without a third-party UCP merchant or extra language toolchains."
+      ],
+      "path": "library/commerce/ucp",
+      "printer": "beetz12",
+      "printer_name": "david",
+      "mcp": {
+        "binary": "ucp-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 1,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "API_TOKEN"
+        ],
+        "mcp_ready": "full"
       }
     },
     {
