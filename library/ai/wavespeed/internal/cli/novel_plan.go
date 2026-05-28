@@ -183,24 +183,36 @@ func parseBriefToShots(brief string, platforms, aspects []string) []Shot {
 	var shots []Shot
 	switch {
 	case len(platforms) > 0:
+		// Mirror buildPackShots' platform×aspect cross-product so a planned
+		// shotlist matches exactly what pack will produce — otherwise
+		// cost-estimate and qa preflight operate on an undercounted list.
 		for _, p := range platforms {
 			fmtDesc, ok := defaultFormatFor(p)
-			aspect := ""
 			format := ""
+			defAspect := ""
 			if ok {
-				aspect = fmtDesc.AspectRatio
 				format = fmtDesc.Format
+				defAspect = fmtDesc.AspectRatio
 			}
 			if len(aspects) > 0 {
-				aspect = aspects[0]
+				for _, a := range aspects {
+					shots = append(shots, Shot{
+						Concept:     truncate(brief, 80),
+						Prompt:      brief,
+						Platform:    p,
+						Format:      format,
+						AspectRatio: a,
+					})
+				}
+			} else {
+				shots = append(shots, Shot{
+					Concept:     truncate(brief, 80),
+					Prompt:      brief,
+					Platform:    p,
+					Format:      format,
+					AspectRatio: defAspect,
+				})
 			}
-			shots = append(shots, Shot{
-				Concept:     truncate(brief, 80),
-				Prompt:      brief,
-				Platform:    p,
-				Format:      format,
-				AspectRatio: aspect,
-			})
 		}
 	case len(aspects) > 0:
 		for _, a := range aspects {

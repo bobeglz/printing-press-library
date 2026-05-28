@@ -184,6 +184,38 @@ func TestE2EAgentChain(t *testing.T) {
 	}
 }
 
+func TestE2EPackMultiAspectNoCollision(t *testing.T) {
+	srv := newFakeWaveSpeed(fakeServerOpts{price: 1.0, balance: 100})
+	defer srv.Close()
+	e2eEnv(t, srv.URL)
+
+	// Multiple aspects for one platform must write distinct files (no collision)
+	// and a single manifest listing all of them.
+	out, _, err := runCLI(t, "pack", "--concept", "multi aspect",
+		"--platforms", "instagram", "--aspects", "16:9,9:16,1:1",
+		"--model", "wavespeed-ai/flux-dev", "--concurrency", "3", "--agent")
+	if err != nil {
+		t.Fatalf("pack: %v\n%s", err, out)
+	}
+	dir := filepath.Join("packs", "multi-aspect", "instagram")
+	for _, name := range []string{"feed-16x9.png", "feed-9x16.png", "feed-1x1.png"} {
+		if _, err := os.Stat(filepath.Join(dir, name)); err != nil {
+			t.Fatalf("expected distinct file %s: %v", name, err)
+		}
+	}
+	manRaw, err := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if err != nil {
+		t.Fatalf("manifest: %v", err)
+	}
+	var man platformManifest
+	if err := json.Unmarshal(manRaw, &man); err != nil {
+		t.Fatal(err)
+	}
+	if len(man.Files) != 3 || len(man.Assets) != 3 {
+		t.Fatalf("manifest should aggregate 3 assets: files=%d assets=%d", len(man.Files), len(man.Assets))
+	}
+}
+
 func TestE2EPackMaxCostAbort(t *testing.T) {
 	srv := newFakeWaveSpeed(fakeServerOpts{price: 1.0, balance: 100})
 	defer srv.Close()

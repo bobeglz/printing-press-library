@@ -20,6 +20,13 @@ func TestParseBriefToShots(t *testing.T) {
 	if len(shots) != 1 || shots[0].AspectRatio != "16:9" {
 		t.Fatalf("aspect override = %#v", shots)
 	}
+	// Platforms × multiple aspects → full N×M cross-product, mirroring
+	// buildPackShots so plan output matches what pack produces.
+	shots = parseBriefToShots("hero", []string{"instagram", "tiktok"}, []string{"16:9", "1:1"})
+	if len(shots) != 4 {
+		t.Fatalf("platform×aspect cross-product = %d shots, want 4: %#v", len(shots), shots)
+	}
+
 	// Aspects only → one shot per aspect, no platform.
 	shots = parseBriefToShots("hero", nil, []string{"1:1", "9:16"})
 	if len(shots) != 2 || shots[0].Platform != "" {

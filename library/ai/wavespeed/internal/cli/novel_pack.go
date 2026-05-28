@@ -68,6 +68,20 @@ type platformManifest struct {
 	Brand          string   `json:"brand,omitempty"`
 	SeedUsed       *int64   `json:"seed_used,omitempty"`
 	ContentHash    string   `json:"content_hash,omitempty"`
+	// Assets carries per-asset detail when a platform has multiple aspect
+	// variants in one manifest. Single-asset packs also populate the top-level
+	// Dimensions/SeedUsed/ContentHash for back-compat.
+	Assets []manifestAsset `json:"assets,omitempty"`
+}
+
+// manifestAsset is one produced file set within a platform manifest.
+type manifestAsset struct {
+	Files       []string `json:"files"`
+	AspectRatio string   `json:"aspect_ratio,omitempty"`
+	Dimensions  string   `json:"dimensions,omitempty"`
+	ContentHash string   `json:"content_hash,omitempty"`
+	SeedUsed    *int64   `json:"seed_used,omitempty"`
+	Cost        float64  `json:"cost"`
 }
 
 func newPackCmd(flags *rootFlags) *cobra.Command {
@@ -99,9 +113,11 @@ func newPackCmd(flags *rootFlags) *cobra.Command {
 			project, _ := loadWavespeedProjectConfig()
 			brandName := resolveActiveBrand(project, pf.brand)
 			var body brandProfileBody
+			brandID := ""
 			if brandName != "" {
-				if _, b, err := loadBrandProfile(brandName); err == nil {
+				if prof, b, err := loadBrandProfile(brandName); err == nil {
 					body = b
+					brandID = prof.ID
 				}
 			}
 			shots := buildPackShots(pf, brandName, body)
@@ -125,7 +141,7 @@ func newPackCmd(flags *rootFlags) *cobra.Command {
 			if flags.dryRun {
 				return packDryRun(cmd, c, pf, slug, shots, brandName)
 			}
-			return packExecute(cmd, c, project, pf, slug, shots, brandName)
+			return packExecute(cmd, c, project, pf, slug, shots, brandName, brandID)
 		},
 	}
 	cmd.Flags().StringVar(&pf.concept, "concept", "", "The single creative concept to expand into a pack")
@@ -222,8 +238,29 @@ func packDryRun(cmd *cobra.Command, c *client.Client, pf packFlags, slug string,
 	return emitEnvelope(cmd.OutOrStdout(), env)
 }
 
-func packExecute(cmd *cobra.Command, c *client.Client, project wavespeedProjectConfig, pf packFlags, slug string, shots []Shot, brandName string) error {
+func packExecute(cmd *cobra.Command, c *client.Client, project wavespeedProjectConfig, pf packFlags, slug string, shots []Shot, brandName, brandID string) error {
 	ctx := cmd.Context()
+
+	// --clean runs ONCE per unique platform dir before any goroutine launches.
+	// Cleaning inside produceShot would race: two shots sharing a platform dir
+	// (e.g. multiple aspects for one platform) could delete each other's
+	// freshly-written output.
+	if pf.clean {
+		cleaned := map[string]bool{}
+		for i := range shots {
+			dir := filepath.Join(pf.outDir, slug, dirSafe(shots[i].Platform))
+			if cleaned[dir] {
+				continue
+			}
+			cleaned[dir] = true
+			if entries, err := os.ReadDir(dir); err == nil {
+				for _, e := range entries {
+					_ = os.Remove(filepath.Join(dir, e.Name()))
+				}
+			}
+		}
+	}
+
 	var (
 		mu       sync.Mutex
 		wg       sync.WaitGroup
@@ -275,7 +312,7 @@ func packExecute(cmd *cobra.Command, c *client.Client, project wavespeedProjectC
 			// Record completed shots regardless of later abort. A record
 			// failure is logged and never fails the generation.
 			if recordEnabled && oc.Err == "" {
-				if rerr := recordPackShot(oc, shots[i], brandName); rerr != nil {
+				if rerr := recordPackShot(oc, shots[i], brandName, brandID); rerr != nil {
 					mu.Lock()
 					recordErrs = append(recordErrs, rerr.Error())
 					mu.Unlock()
@@ -327,17 +364,18 @@ func produceShot(ctx context.Context, c *client.Client, pf packFlags, slug strin
 	oc := shotOutcome{Shot: s, Platform: s.Platform, Format: s.Format, Files: []string{}, SeedUsed: s.Seed}
 	platformDir := filepath.Join(pf.outDir, slug, dirSafe(s.Platform))
 
-	if pf.clean {
-		if entries, err := os.ReadDir(platformDir); err == nil {
-			for _, e := range entries {
-				_ = os.Remove(filepath.Join(platformDir, e.Name()))
-			}
-		}
-	}
+	// --clean is handled once per platform dir in packExecute before launch.
 
 	fileBase := s.Format
 	if fileBase == "" {
 		fileBase = "asset"
+	}
+	// When multiple aspect ratios target the same platform, the format alone
+	// (e.g. "feed") collides — every shot would write feed.{ext}. Disambiguate
+	// by aspect so each asset gets a distinct path. The common single-aspect
+	// case keeps the clean "feed.png" name.
+	if len(pf.aspects) > 0 && s.AspectRatio != "" {
+		fileBase += "-" + strings.ReplaceAll(s.AspectRatio, ":", "x")
 	}
 	spec := filepath.Join(platformDir, fileBase+".{ext}")
 
@@ -405,53 +443,83 @@ func validateImageDims(files []string, s Shot) (string, string) {
 	return "", ""
 }
 
-// writePlatformManifests writes one manifest.json per produced platform dir.
+// writePlatformManifests writes one manifest.json per produced platform dir,
+// grouping all of that platform's shots (e.g. multiple aspect variants) into a
+// single manifest so a later aspect doesn't clobber an earlier one's manifest.
 // Returns the list of manifest paths written.
 func writePlatformManifests(pf packFlags, slug string, shots []Shot, outcomes []shotOutcome) []string {
-	written := []string{}
+	type entry struct {
+		shot Shot
+		oc   shotOutcome
+	}
+	byPlatform := map[string][]entry{}
+	order := []string{}
 	for i := range outcomes {
 		oc := outcomes[i]
 		if oc.Skipped || oc.Err != "" || len(oc.Files) == 0 {
 			continue
 		}
-		s := shots[i]
-		spec, _ := lookupPlatform(s.Platform)
-		f, _ := formatFor(spec, s.Format)
+		p := shots[i].Platform
+		if _, seen := byPlatform[p]; !seen {
+			order = append(order, p)
+		}
+		byPlatform[p] = append(byPlatform[p], entry{shot: shots[i], oc: oc})
+	}
+
+	written := []string{}
+	for _, p := range order {
+		entries := byPlatform[p]
+		spec, _ := lookupPlatform(p)
+		f, _ := formatFor(spec, entries[0].shot.Format)
 		man := platformManifest{
-			Platform:       s.Platform,
+			Platform:       p,
 			Format:         f.Format,
-			Dimensions:     oc.Dimensions,
 			DurationCapSec: f.DurationCapSec,
 			CaptionHint:    f.CaptionHint,
 			HashtagSlots:   f.HashtagSlots,
-			Files:          oc.Files,
-			Model:          s.Model,
-			Cost:           oc.Cost,
-			Brand:          s.Brand,
-			SeedUsed:       oc.SeedUsed,
-			ContentHash:    oc.ContentHash,
+			Model:          entries[0].shot.Model,
+			Brand:          entries[0].shot.Brand,
 		}
-		dir := filepath.Join(pf.outDir, slug, dirSafe(s.Platform))
+		for _, e := range entries {
+			man.Files = append(man.Files, e.oc.Files...)
+			man.Cost += e.oc.Cost
+			man.Assets = append(man.Assets, manifestAsset{
+				Files:       e.oc.Files,
+				AspectRatio: e.shot.AspectRatio,
+				Dimensions:  e.oc.Dimensions,
+				ContentHash: e.oc.ContentHash,
+				SeedUsed:    e.oc.SeedUsed,
+				Cost:        e.oc.Cost,
+			})
+		}
+		// For the single-asset common case, surface the asset's details at the
+		// top level too (back-compat with one-shot-per-platform consumers).
+		if len(entries) == 1 {
+			man.Dimensions = entries[0].oc.Dimensions
+			man.ContentHash = entries[0].oc.ContentHash
+			man.SeedUsed = entries[0].oc.SeedUsed
+		}
+		dir := filepath.Join(pf.outDir, slug, dirSafe(p))
 		path := filepath.Join(dir, "manifest.json")
 		if writeJSONFile(path, man) == nil {
 			written = append(written, path)
 		}
 		if pf.history {
 			ts := time.Now().UTC().Format("20060102-150405")
-			histDir := filepath.Join(pf.outDir, slug+"-history", ts, dirSafe(s.Platform))
+			histDir := filepath.Join(pf.outDir, slug+"-history", ts, dirSafe(p))
 			_ = writeJSONFile(filepath.Join(histDir, "manifest.json"), man)
 		}
 	}
 	return written
 }
 
-func recordPackShot(oc shotOutcome, s Shot, brandName string) error {
+func recordPackShot(oc shotOutcome, s Shot, brandName, brandID string) error {
 	params, _ := json.Marshal(s.toModelInputs())
 	g := store.Generation{
 		ID:             newGenerationID(),
 		Command:        "pack",
 		BrandName:      brandName,
-		BrandProfileID: brandName,
+		BrandProfileID: brandID,
 		PlatformTarget: s.Platform,
 		ModelID:        s.Model,
 		Prompt:         s.Prompt,
