@@ -40,7 +40,7 @@ export function createUpdateCommand(overrides: Partial<UpdateDeps> = {}) {
     }
 
     if (installed.length === 0) {
-      deps.stdout("Nothing to update; no Printing Press CLIs were found on PATH.");
+      deps.stdout("No Printing Press CLIs found on PATH to refresh.");
       return 0;
     }
 
@@ -83,7 +83,7 @@ function parseUpdateArgs(args: string[]):
         installArgs.push(value);
       }
     } else if (arg.startsWith("-")) {
-      return { error: `Unknown update option: ${arg}` };
+      return { error: `Unknown option: ${arg}` };
     } else if (!name) {
       name = arg;
     } else {
