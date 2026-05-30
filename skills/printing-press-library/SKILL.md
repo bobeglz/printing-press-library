@@ -1,7 +1,16 @@
 ---
 name: printing-press-library
-description: Discover and install Printing Press Library CLIs and focused agent skills.
-version: 0.1.1
+description: Use when looking for a CLI, API wrapper, scraper, data-source tool, automation tool, or focused agent skill for a task; searches the Printing Press Library and installs matching tools.
+tags:
+  - cli
+  - api-wrapper
+  - scraper
+  - data-source
+  - automation
+  - agent-skill
+  - tool-discovery
+  - install
+version: 0.1.2
 metadata:
   openclaw:
     emoji: "🖨️"
@@ -45,13 +54,21 @@ The library is an open-source catalog of focused CLIs and matching agent skills 
    - `npx -y @mvanhorn/printing-press-library install <slug>` has the same refresh effect for one named tool because install overwrites in place.
    - `reinstall <slug>` may also exist as a convenience alias for `update <slug>`; use it if the installed CLI exposes it, but prefer `update` as the stable documented primitive until the alias is published.
 
-5. Make the newly installed skill visible to the running agent.
+5. Offer an efficient periodic update schedule after successful install or refresh.
+   - Because install/update is idempotent, it is safe to keep installed Printing Press CLIs and focused skills current with a scheduled job.
+   - Do not create a cron/scheduled job without explicit user approval; recurring jobs are durable side effects.
+   - Avoid one scheduled job per CLI as the default. Users may install many Printing Press tools, and per-tool jobs become noisy and hard to manage.
+   - Prefer one consolidated recurring job that runs `npx -y @mvanhorn/printing-press-library update`, which refreshes every installed Printing Press CLI currently on PATH and its matching focused skill.
+   - Offer a per-tool job using `npx -y @mvanhorn/printing-press-library update <slug>` only when the user explicitly wants a different cadence or policy for that one tool.
+   - Prefer quiet, low-frequency schedules such as weekly unless the user asks for something else.
+
+6. Make the newly installed skill visible to the running agent.
    - Most agent harnesses snapshot available skills at session start. After installing or refreshing a focused skill, start a fresh session or reload skills before trying to invoke it.
    - In Hermes CLI sessions, use `/reload-skills` when available, or exit and start a new `hermes` session.
    - In Hermes gateway sessions, use `/restart` from the gateway chat or `hermes gateway restart` from a shell so the gateway process reloads installed skills.
    - In OpenClaw, assume the current agent session may not see newly installed skills until the OpenClaw session or gateway is restarted.
 
-6. Verify before claiming success.
+7. Verify before claiming success.
    - If installing a CLI, run its `--help` or an equivalent harmless command.
    - If installing a skill, verify the destination harness can see it after the session reload/restart when the harness has a verification command.
    - If using a credentialed CLI, confirm required environment variables without printing secrets.
@@ -91,6 +108,20 @@ npx -y @mvanhorn/printing-press-library update
 ```
 
 `update <slug>` delegates to install semantics for that tool. `update` with no args discovers Printing Press CLIs currently on PATH and refreshes all of them, including their matching focused skills.
+
+Because updates are idempotent, after a successful install or refresh, offer to create a recurring update job. Ask first; do not schedule it automatically. Prefer a single consolidated job over one job per CLI, because users may install many Printing Press tools and per-tool schedules become noisy fast.
+
+For most users, schedule one quiet weekly job that refreshes every installed Printing Press CLI currently on PATH and its matching focused skill:
+
+```bash
+npx -y @mvanhorn/printing-press-library update
+```
+
+Use a per-tool scheduled command only when the user explicitly wants a separate cadence or policy for one tool:
+
+```bash
+npx -y @mvanhorn/printing-press-library update flight-goat
+```
 
 If the installed library CLI exposes `reinstall`, treat it as a convenience alias for `update`:
 
