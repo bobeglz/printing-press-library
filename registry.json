@@ -1413,6 +1413,53 @@
       }
     },
     {
+      "name": "breezedoc",
+      "category": "productivity",
+      "api": "BreezeDoc",
+      "description": "BreezeDoc's REST API provides a handful of endpoints which can be used to get information about your account and",
+      "search_terms": [
+        "breezedoc",
+        "breezedoc-pp-cli",
+        "E-signature and invoicing API for documents, templates, recipients, teams, and invoice workflows.",
+        "Invoice lifecycle",
+        "workflow invoice-lifecycle",
+        "Create, update, optionally send, and refetch BreezeDoc invoices as one structured agent workflow.",
+        "Client workspace snapshot",
+        "workflow client-workspace-snapshot",
+        "Collect a compact account snapshot across user, documents, templates, recipients, invoices, and optional teams.",
+        "Document follow-up",
+        "workflow document-follow-up",
+        "Inspect a document and its recipients, derive follow-up statuses, and optionally resend with explicit opt-in.",
+        "Signature packet prep",
+        "workflow signature-packet-prep",
+        "Prepare a signature packet from a template or raw document payload and optionally send it with explicit opt-in."
+      ],
+      "path": "library/productivity/breezedoc",
+      "printer": "cathrynlavery",
+      "printer_name": "Cathryn Lavery",
+      "creator": {
+        "handle": "cathrynlavery",
+        "name": "Cathryn Lavery"
+      },
+      "mcp": {
+        "binary": "breezedoc-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 19,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "BREEZEDOC_API_TOKEN",
+          "BREEZEDOC_BEARER_TOKEN",
+          "BREEZEDOC_BEARER_AUTH"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "cal-com",
       "category": "productivity",
       "api": "Cal.com",
