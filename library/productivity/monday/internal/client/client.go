@@ -9,10 +9,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/mvanhorn/printing-press-library/library/productivity/monday/internal/cliutil"
-	"github.com/mvanhorn/printing-press-library/library/productivity/monday/internal/config"
 	"io"
 	"math"
+	"monday-pp-cli/internal/cliutil"
+	"monday-pp-cli/internal/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -120,9 +120,11 @@ func (c *Client) readCache(path string, params map[string]string) (json.RawMessa
 }
 
 func (c *Client) writeCache(path string, params map[string]string, data json.RawMessage) {
-	os.MkdirAll(c.cacheDir, 0o755)
+	// Cache holds raw API responses (boards, items, user data). Keep it owner-
+	// only so other users on a shared host can't read it.
+	os.MkdirAll(c.cacheDir, 0o700)
 	cacheFile := filepath.Join(c.cacheDir, c.cacheKey(path, params)+".json")
-	os.WriteFile(cacheFile, []byte(data), 0o644)
+	os.WriteFile(cacheFile, []byte(data), 0o600)
 }
 
 // invalidateCache wholesale-removes the cache directory so the next read

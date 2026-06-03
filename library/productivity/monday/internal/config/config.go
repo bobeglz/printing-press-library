@@ -83,11 +83,14 @@ func (c *Config) AuthHeader() string {
 	if c.AuthHeaderVal != "" {
 		return c.AuthHeaderVal
 	}
-	token := c.MondayApiToken
-	if token == "" {
-		return ""
+	if c.MondayApiToken != "" {
+		return c.MondayApiToken
 	}
-	return token
+	// OAuth path: after refreshAccessToken() stores a refreshed token in
+	// AccessToken, fall back to it so the Authorization header is non-empty.
+	// monday.com accepts both personal API tokens and OAuth access tokens raw
+	// in the Authorization header (no Bearer prefix).
+	return c.AccessToken
 }
 
 func applyAuthFormat(format string, replacements map[string]string) string {

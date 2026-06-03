@@ -11,6 +11,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"hash/crc64"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -578,12 +579,14 @@ func extractObjectID(obj map[string]any) string {
 // ftsRowID derives a deterministic rowid from a string ID for use with FTS5.
 // modernc.org/sqlite's FTS5 implementation may not support DELETE WHERE column=?
 // on virtual tables, so we use explicit rowids and DELETE WHERE rowid=? instead.
+var ftsRowIDTable = crc64.MakeTable(crc64.ECMA)
+
 func ftsRowID(id string) int64 {
-	var h uint64
-	for _, c := range id {
-		h = h*31 + uint64(c)
-	}
-	return int64(h & 0x7FFFFFFFFFFFFFFF) // ensure positive
+	// CRC-64/ECMA over the full id: a far lower collision rate than the old
+	// polynomial string hash, which mapped long ids into 63 bits densely
+	// enough that two resource ids could share a rowid and the DELETE-before-
+	// reinsert would silently drop the wrong FTS row.
+	return int64(crc64.Checksum([]byte(id), ftsRowIDTable) & 0x7FFFFFFFFFFFFFFF) // ensure positive
 }
 
 // LookupFieldValue resolves a field value from a JSON object map, trying
@@ -861,12 +864,28 @@ func (s *Store) GetSyncCursor(resourceType string) string {
 	return ""
 }
 
+// sqlIdentifierRe matches a bare SQL identifier (table/column name): a letter
+// or underscore followed by letters, digits, or underscores. No quotes, spaces,
+// or punctuation that could break out of an interpolated identifier position.
+var sqlIdentifierRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
+
+func isSQLIdentifier(s string) bool { return sqlIdentifierRe.MatchString(s) }
+
 // ListIDs returns all IDs from a resource's domain table, or from the generic
 // resources table if no domain table exists. Used by dependent sync to iterate parents.
 func (s *Store) ListIDs(resourceType string) ([]string, error) {
-	// Try domain table first (tables are named after the resource type)
-	query := fmt.Sprintf("SELECT id FROM %s", resourceType)
-	rows, err := s.db.Query(query)
+	// resourceType names a table, so it cannot be a bound parameter. Validate
+	// it as a bare SQL identifier before interpolating to block injection from
+	// a caller-supplied --resources value (e.g. "resources WHERE 1=1 UNION ...").
+	// A non-identifier value skips the domain-table attempt and falls through to
+	// the parameterized generic-table query.
+	var rows *sql.Rows
+	var err error
+	if isSQLIdentifier(resourceType) {
+		rows, err = s.db.Query(fmt.Sprintf("SELECT id FROM %s", resourceType))
+	} else {
+		err = fmt.Errorf("invalid resource type %q", resourceType)
+	}
 	if err != nil {
 		// Fall back to generic resources table
 		rows, err = s.db.Query("SELECT id FROM resources WHERE resource_type = ?", resourceType)
