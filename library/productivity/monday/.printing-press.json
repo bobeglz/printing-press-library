@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "generated_at": "2026-05-10T00:43:34.846365Z",
-  "printing_press_version": "4.2.1",
+  "printing_press_version": "4.20.1",
   "api_name": "monday",
   "display_name": "monday.com",
   "cli_name": "monday-pp-cli",
