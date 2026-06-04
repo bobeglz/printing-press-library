@@ -273,6 +273,34 @@ rappi-pp-cli profile delete briefing --yes
 
 Explicit flags always win over profile values; profile values win over defaults. `agent-context` lists all available profiles under `available_profiles` so introspecting agents discover them at runtime.
 
+## Addresses
+
+Saved addresses are local delivery locations stored in `~/.rappi-pp-cli/addresses.json`. Use them when the user wants Rappi results for a recurring address without repeating location flags.
+
+```
+rappi-pp-cli address save casa --city ciudad-de-mexico --lat 19.36 --lng -99.17 --agent
+rappi-pp-cli address use casa --agent
+rappi-pp-cli address current --agent
+rappi-pp-cli address show casa --agent
+rappi-pp-cli address list --agent
+rappi-pp-cli address delete casa --yes --agent
+```
+
+`address use <label>` persists the active delivery address. This differs from `profile use <name>`, which only prints a profile for inspection.
+
+Active-address precedence is: explicit `--city` / `--lat` / `--lng` flags > `--profile` values > active address > command defaults or city-centroid fallback. When the active address is applied, the CLI writes a `note:` to stderr in every mode, including `--agent`; stdout remains valid JSON.
+
+The payoff flow for proximity is:
+
+```
+rappi-pp-cli address use casa --agent
+rappi-pp-cli restaurants near --fetch-detail --agent
+```
+
+If the active address has coordinates and the command has an unset `--fetch-detail` flag, the stderr note reminds you to add `--fetch-detail` for proximity results. City-only addresses still apply `--city`; `restaurants near` then uses the existing city centroid fallback.
+
+Behavior changes to remember: `stores adjacency` has a default `--city ciudad-de-mexico`, but an active address overrides that default because the flag was not explicitly set. `restaurants diff` follows the active address city when no `--city` is passed and includes `active_address` in its JSON result envelope so snapshot baselines are attributable.
+
 ## Exit Codes
 
 | Code | Meaning |

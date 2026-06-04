@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "applied_at": "2026-05-20",
+  "applied_at": "2026-06-04",
   "base_run_id": "20260518-200403",
   "base_printing_press_version": "4.2.1",
   "patches": [
@@ -27,6 +27,90 @@
         "internal/store/store.go"
       ],
       "validated_outcome": "go test ./...; go vet ./...; go build ./...; verify_skill.py"
+    },
+    {
+      "id": "address-store-and-commands",
+      "files": [
+        "internal/cli/address_store.go",
+        "internal/cli/address_store_test.go",
+        "internal/cli/address.go",
+        "internal/cli/address_test.go"
+      ],
+      "summary": "Added a typed local store and Cobra address commands for saved delivery addresses.",
+      "reason": "Rappi usage needs a reusable delivery location with nullable coordinates and an active pointer, which generated profiles cannot model safely.",
+      "validated_outcome": "Covered by address store and command tests plus isolated-HOME smoke flows."
+    },
+    {
+      "id": "active-address-overlay",
+      "files": [
+        "internal/cli/address_overlay.go",
+        "internal/cli/address_overlay_test.go",
+        "internal/cli/root.go",
+        "internal/cli/restaurants_diff.go"
+      ],
+      "summary": "Applied the active address as default city/lat/lng context in PersistentPreRunE.",
+      "reason": "Flagless geo commands should answer for the active delivery address while explicit flags and profiles keep precedence.",
+      "validated_outcome": "Decision-matrix tests cover no-op, explicit skip, profile skip, city-only, coords, corrupt store, dangling active, dry-run, and diff attribution."
+    },
+    {
+      "id": "address-root-registration",
+      "files": [
+        "internal/cli/root.go"
+      ],
+      "summary": "Registered the local address command group in the root Cobra tree.",
+      "reason": "The command group is hand-written and MCP-hidden, so it needs one root registration line outside the generator output.",
+      "validated_outcome": "CLI tests execute address save/show/use/current/list/delete through the root command."
+    },
+    {
+      "id": "address-which-index",
+      "files": [
+        "internal/cli/which.go"
+      ],
+      "summary": "Added address use to the curated which index.",
+      "reason": "Generated which entries are static; agents need natural-language discovery for changing delivery location.",
+      "validated_outcome": "Smoke verification checks which \"change my delivery address\" returns the address entry."
+    },
+    {
+      "id": "address-docs-and-feature-index",
+      "files": [
+        ".printing-press.json",
+        "SKILL.md",
+        "README.md"
+      ],
+      "summary": "Documented the address feature and added it to novel_features.",
+      "reason": "Printing Press skill and README surfaces must stay in lockstep with actual Cobra commands and behavior changes.",
+      "validated_outcome": "Full verification includes go test, go vet, build, and command smoke flows."
+    },
+    {
+      "id": "address-agent-context",
+      "files": [
+        "internal/cli/agent_context.go",
+        "internal/cli/address_store.go"
+      ],
+      "summary": "Surfaced available_addresses and active_address in the agent-context introspection JSON.",
+      "reason": "Agents priming on agent-context must know an active address exists; otherwise they pass explicit --city flags and silently defeat the overlay.",
+      "validated_outcome": "Covered by TestBuildAgentContext_IncludesAddresses and agent-context smoke output."
+    },
+    {
+      "id": "2026-06-01-search-agent-output-patches",
+      "files": [
+        "internal/cli/search.go",
+        "internal/cli/helpers.go",
+        "internal/store/store.go",
+        "SKILL.md",
+        ".printing-press.json",
+        "rappi-pp-cli"
+      ],
+      "summary": "Cataloged the 2026-06-01 hand patches from commit 9fd78b2 for search and agent-output behavior.",
+      "reason": "These local fixes predate this manifest and would be easy to lose on reprint unless indexed here.",
+      "validated_outcome": "Enumerated from git show --stat 9fd78b2."
+    }
+  ],
+  "deferred_to_upstream": [
+    {
+      "id": "active-location-context",
+      "summary": "Generalize an active named location/context mechanism for geo-keyed pp CLIs",
+      "reason": "Feature is generator-shaped; belongs in the printing-press machine"
     }
   ]
 }

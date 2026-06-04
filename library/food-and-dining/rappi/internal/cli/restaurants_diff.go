@@ -87,6 +87,7 @@ without diff; the second and later runs answer "what's new this week".`,
 				"category": category,
 				"taken_at": time.Now().UTC().Format(time.RFC3339),
 			}
+			annotateAddressOverlayResult(cmd, result)
 			if baseline == nil {
 				result["baseline"] = nil
 				result["note"] = "No prior snapshot before --since; recording current state. Re-run later to see a diff."

@@ -131,18 +131,21 @@ In local mode: searches locally synced data only.`,
 			defer db.Close()
 
 			var results []json.RawMessage
-			switch resourceType {
-			case "":
-				// Search all FTS-enabled tables individually to avoid duplicates.
-				seen := make(map[string]bool)
-				_ = seen // prevent unused error when no FTS tables exist
-			default:
-				// Unrecognized type — fall back to generic search
+			if resourceType == "" {
 				results, err = db.Search(query, limit)
+			} else {
+				results, err = db.SearchByType(query, resourceType, limit)
 			}
 			if err != nil {
 				return fmt.Errorf("search failed: %w", err)
 			}
+
+			// Snapshot records store many entities under an "items" array
+			// (e.g. a city's restaurant list). FTS matches at the record
+			// level, so a single 15KB snapshot would otherwise come back as
+			// one opaque blob. Expand those into individual entities and keep
+			// only the ones that actually match the query.
+			results = expandSnapshotItems(results, query)
 
 			reason := "user_requested"
 			if flags.dataSource != "local" {
@@ -206,4 +209,54 @@ func outputSearchResults(cmd *cobra.Command, flags *rootFlags, results []json.Ra
 		fmt.Fprintln(cmd.OutOrStdout(), string(r))
 	}
 	return nil
+}
+
+// expandSnapshotItems unwraps records that carry an "items" array (snapshot
+// rows written by commands like 'restaurants diff') into their individual
+// entities, keeping only items that match the query. Records without an
+// "items" array pass through unchanged. The query is matched as a
+// case-insensitive substring against each item's string fields — FTS already
+// selected the snapshot at the record level, so this narrows it to the rows
+// the user actually asked for.
+func expandSnapshotItems(results []json.RawMessage, query string) []json.RawMessage {
+	q := strings.ToLower(strings.TrimSpace(query))
+	out := make([]json.RawMessage, 0, len(results))
+	for _, r := range results {
+		var obj map[string]json.RawMessage
+		if json.Unmarshal(r, &obj) != nil {
+			out = append(out, r)
+			continue
+		}
+		itemsRaw, ok := obj["items"]
+		if !ok {
+			out = append(out, r) // not a snapshot — keep the whole record
+			continue
+		}
+		var items []json.RawMessage
+		if json.Unmarshal(itemsRaw, &items) != nil {
+			out = append(out, r)
+			continue
+		}
+		for _, it := range items {
+			if q == "" || itemMatchesQuery(it, q) {
+				out = append(out, it)
+			}
+		}
+	}
+	return out
+}
+
+// itemMatchesQuery reports whether lowerQuery appears as a substring in any
+// string-valued field of the item (name, url, address, ...).
+func itemMatchesQuery(item json.RawMessage, lowerQuery string) bool {
+	var m map[string]any
+	if json.Unmarshal(item, &m) != nil {
+		return strings.Contains(strings.ToLower(string(item)), lowerQuery)
+	}
+	for _, v := range m {
+		if s, ok := v.(string); ok && strings.Contains(strings.ToLower(s), lowerQuery) {
+			return true
+		}
+	}
+	return false
 }

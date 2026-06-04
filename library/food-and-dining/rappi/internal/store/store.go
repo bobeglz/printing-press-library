@@ -530,6 +530,36 @@ func (s *Store) Search(query string, limit int) ([]json.RawMessage, error) {
 	return results, rows.Err()
 }
 
+// SearchByType runs the same FTS query as Search but restricts results to a
+// single resource_type — backing the search command's --type flag.
+func (s *Store) SearchByType(query, resourceType string, limit int) ([]json.RawMessage, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	rows, err := s.db.Query(
+		`SELECT r.data FROM resources r
+		 JOIN resources_fts f ON r.id = f.id
+		 WHERE resources_fts MATCH ? AND r.resource_type = ?
+		 ORDER BY rank
+		 LIMIT ?`,
+		query, resourceType, limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []json.RawMessage
+	for rows.Next() {
+		var data string
+		if err := rows.Scan(&data); err != nil {
+			return nil, err
+		}
+		results = append(results, json.RawMessage(data))
+	}
+	return results, rows.Err()
+}
+
 func extractObjectID(obj map[string]any) string {
 	for _, key := range []string{"id", "ID", "uuid", "slug", "name"} {
 		if v, ok := obj[key]; ok {

@@ -73,6 +73,11 @@
       "name": "Pharmacy near supermarket adjacency",
       "command": "stores adjacency",
       "description": "Stores of type A within a Haversine radius of stores of type B (e.g., pharmacies within 1km of supermarkets) \u2014 for concierge-style \"one-stop trip\" planning."
+    },
+    {
+      "name": "Active delivery address",
+      "command": "address",
+      "description": "Save named delivery addresses, persist the active one, and apply it as default city/lat/lng context for geo-aware commands."
     }
   ],
   "category": "food-and-dining"

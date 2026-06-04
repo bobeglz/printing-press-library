@@ -213,6 +213,23 @@ These capabilities aren't available in any other tool for this API.
 
 Run `rappi-pp-cli --help` for the full command reference and flag list.
 
+## Addresses / Active Location
+
+Save local delivery addresses and persist one active address:
+
+```bash
+rappi-pp-cli address save casa --city ciudad-de-mexico --lat 19.36 --lng -99.17 --agent
+rappi-pp-cli address use casa --agent
+rappi-pp-cli address current --agent
+rappi-pp-cli address show casa --agent
+rappi-pp-cli address list --agent
+rappi-pp-cli address delete casa --yes --agent
+```
+
+`address use <label>` writes the active pointer, unlike `profile use <name>`, which only prints values. Location precedence is explicit `--city` / `--lat` / `--lng` flags, then `--profile`, then the active address, then command defaults or centroid fallback. When an active address is applied, a `note:` is emitted on stderr in all modes while stdout remains JSON-safe.
+
+After `address use casa`, run `rappi-pp-cli restaurants near --fetch-detail --agent` with no geo flags to search around the saved coordinates. City-only addresses apply only `--city`. Active addresses also override the default `--city ciudad-de-mexico` on `stores adjacency`, and `restaurants diff` includes `active_address` in its JSON result when the overlay sets its city.
+
 ## Commands
 
 ### catalog

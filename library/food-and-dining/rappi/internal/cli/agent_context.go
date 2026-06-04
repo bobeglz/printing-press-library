@@ -28,6 +28,8 @@ type agentContext struct {
 	Discovery                  *agentContextDiscovery `json:"discovery,omitempty"`
 	Commands                   []agentContextCommand  `json:"commands"`
 	AvailableProfiles          []string               `json:"available_profiles"`
+	AvailableAddresses         []string               `json:"available_addresses"` // PATCH: surface saved delivery addresses to agents.
+	ActiveAddress              string                 `json:"active_address"`      // PATCH: surface the active delivery address so agents don't defeat the overlay with explicit --city.
 	FeedbackEndpointConfigured bool                   `json:"feedback_endpoint_configured"`
 }
 
@@ -112,6 +114,11 @@ func buildAgentContext(rootCmd *cobra.Command) agentContext {
 	if profiles == nil {
 		profiles = []string{}
 	}
+	// PATCH: surface saved delivery addresses + the active pointer to agents.
+	addresses := ListAddressNames()
+	if addresses == nil {
+		addresses = []string{}
+	}
 	return agentContext{
 		SchemaVersion: agentContextSchemaVersion,
 		CLI: agentContextCLI{
@@ -126,6 +133,8 @@ func buildAgentContext(rootCmd *cobra.Command) agentContext {
 		Discovery:                  buildAgentDiscoveryContext(),
 		Commands:                   collectAgentCommands(rootCmd),
 		AvailableProfiles:          profiles,
+		AvailableAddresses:         addresses,            // PATCH: delivery-address introspection.
+		ActiveAddress:              ActiveAddressLabel(), // PATCH: delivery-address introspection.
 		FeedbackEndpointConfigured: FeedbackEndpointConfigured(),
 	}
 }

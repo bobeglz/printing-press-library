@@ -154,6 +154,8 @@ See README.md or the bundled SKILL.md for recipes.`,
 				return err
 			}
 		}
+		// PATCH: Apply the persisted active delivery address as default geo context.
+		ApplyActiveAddressToFlags(cmd, flags)
 		if flags.agent {
 			if !cmd.Flags().Changed("json") {
 				flags.asJSON = true
@@ -199,6 +201,7 @@ See README.md or the bundled SKILL.md for recipes.`,
 	rootCmd.AddCommand(newDoctorCmd(flags))
 	rootCmd.AddCommand(newAgentContextCmd(rootCmd))
 	rootCmd.AddCommand(newProfileCmd(flags))
+	rootCmd.AddCommand(newAddressCmd(flags)) // PATCH: Register local delivery-address management commands.
 	rootCmd.AddCommand(newFeedbackCmd(flags))
 	rootCmd.AddCommand(newWhichCmd(flags))
 	rootCmd.AddCommand(newImportCmd(flags))
