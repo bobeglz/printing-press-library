@@ -238,9 +238,6 @@ func weeklyBudgetActions(rows []PerformanceRow, opts WeeklyReviewOptions) []Week
 }
 
 func capBidChange(current, proposed float64, opts WeeklyReviewOptions) float64 {
-	if opts.MaxBid > 0 && proposed > opts.MaxBid {
-		proposed = opts.MaxBid
-	}
 	if opts.MaxBidChangePercent > 0 {
 		maxDelta := current * (opts.MaxBidChangePercent / 100)
 		if proposed > current+maxDelta {
@@ -252,6 +249,9 @@ func capBidChange(current, proposed float64, opts WeeklyReviewOptions) float64 {
 	}
 	if proposed < 0.02 {
 		proposed = 0.02
+	}
+	if opts.MaxBid > 0 && proposed > opts.MaxBid {
+		proposed = opts.MaxBid
 	}
 	return roundCurrency(proposed)
 }
