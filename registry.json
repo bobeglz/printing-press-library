@@ -10775,6 +10775,52 @@
       }
     },
     {
+      "name": "twelvelabs",
+      "category": "ai",
+      "api": "Twelvelabs Video Understanding",
+      "description": "Use the TwelveLabs Video Understanding API to extract information from your videos and make it available to your",
+      "search_terms": [
+        "twelvelabs",
+        "Twelvelabs Video Understanding",
+        "twelvelabs-pp-cli",
+        "Use the TwelveLabs Video Understanding API to extract information from your videos and make it available to your",
+        "Upload and wait for indexing",
+        "upload-video",
+        "Upload a local video file or register a public URL, then poll Twelve Labs until indexing reaches a terminal status.",
+        "Editor-ready video brief",
+        "video-brief",
+        "Generate a deterministic JSON or Markdown editing plan with title, topics, hashtags, chapters, highlights, and recommended cuts.",
+        "Video embedding workflow",
+        "embed",
+        "Create a video embedding task from a local file or public URL and optionally wait for ready results.",
+        "Local clip cutting from plans",
+        "clips",
+        "Cut local clip files with ffmpeg from a video-brief JSON plan without inventing timestamps."
+      ],
+      "path": "library/ai/twelvelabs",
+      "printer": "cathrynlavery",
+      "printer_name": "Cathryn Lavery",
+      "creator": {
+        "handle": "cathrynlavery",
+        "name": "Cathryn Lavery"
+      },
+      "mcp": {
+        "binary": "twelvelabs-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 54,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "TWELVELABS_X_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "twilio",
       "category": "social-and-messaging",
       "api": "Twilio",
