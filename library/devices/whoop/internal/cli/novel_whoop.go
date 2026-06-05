@@ -55,8 +55,7 @@ func startTimeOf(raw json.RawMessage) time.Time {
 	}
 	s, _ := obj["start"].(string)
 	if s == "" {
-		// Recovery records carry no "start" field — fall back to
-		// created_at so time-windowed analytics can see them.
+		// PATCH(analytics-readers-use-sync-store-names): recovery records carry no "start" field — fall back to created_at so time-windowed analytics can see them.
 		s, _ = obj["created_at"].(string)
 	}
 	t, _ := time.Parse(time.RFC3339, s)
@@ -156,13 +155,10 @@ func loadMetricSeries(db *store.Store, metric string, since time.Time) ([]struct
 	case "strain":
 		resource, path = "cycle", []string{"score", "strain"}
 	case "recovery":
-		// Stored under the "recovery" resource (GET /v2/recovery); the
-		// "cycle_recovery" name belongs to the per-cycle endpoint, which
-		// sync never writes.
+		// PATCH(analytics-readers-use-sync-store-names): stored under "recovery" (GET /v2/recovery); "cycle_recovery" is the per-cycle endpoint sync never writes.
 		resource, path = "recovery", []string{"score", "recovery_score"}
 	case "sleep":
-		// Sleep records sync under the "activity" resource
-		// (GET /v2/activity/sleep); there is no "sleep" sync resource.
+		// PATCH(analytics-readers-use-sync-store-names): sleep records sync under "activity" (GET /v2/activity/sleep); there is no "sleep" sync resource.
 		resource, path = "activity", []string{"score", "sleep_performance_percentage"}
 	default:
 		return nil, fmt.Errorf("unknown metric %q (use strain, recovery, sleep)", metric)
@@ -316,6 +312,7 @@ func newClassifyCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
+			// PATCH(analytics-readers-use-sync-store-names): workouts live under "activity-workout"; "activity" holds sleeps.
 			items, err := db.List("activity-workout", 0)
 			if err != nil {
 				return err
@@ -500,6 +497,7 @@ func newSleepDebtCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
+			// PATCH(analytics-readers-use-sync-store-names): sleeps sync under the "activity" resource.
 			items, err := db.List("activity", 0)
 			if err != nil {
 				return err
@@ -748,6 +746,7 @@ func newJournalCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
+			// PATCH(analytics-readers-use-sync-store-names): recoveries sync under "recovery", not "cycle_recovery".
 			items, err := db.List("recovery", 0)
 			if err != nil {
 				return err

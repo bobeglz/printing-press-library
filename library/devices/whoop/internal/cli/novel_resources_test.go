@@ -28,7 +28,7 @@ func TestLoadMetricSeriesUsesSyncResourceNames(t *testing.T) {
 
 	seed := map[string]json.RawMessage{
 		"cycle":    json.RawMessage(`{"id":1,"start":"2026-06-04T08:00:00Z","score":{"strain":12.3}}`),
-		"recovery": json.RawMessage(`{"created_at":"2026-06-04T08:00:00Z","score":{"recovery_score":54}}`), // sin "start": los recovery reales solo traen created_at
+		"recovery": json.RawMessage(`{"created_at":"2026-06-04T08:00:00Z","score":{"recovery_score":54}}`), // no "start": real recovery records only carry created_at
 		"activity": json.RawMessage(`{"id":"s1","start":"2026-06-04T08:00:00Z","score":{"sleep_performance_percentage":66}}`),
 	}
 	for res, data := range seed {
