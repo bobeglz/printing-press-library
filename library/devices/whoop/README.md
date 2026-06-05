@@ -1,6 +1,7 @@
 # Whoop CLI
 
 Created by [@gregvanhorn](https://github.com/gregvanhorn) (Greg Van Horn).
+Contributors: [@bobeglz](https://github.com/bobeglz) (Roberto González Grajeda).
 
 ## Install
 

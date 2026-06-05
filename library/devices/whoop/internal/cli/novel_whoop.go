@@ -54,6 +54,11 @@ func startTimeOf(raw json.RawMessage) time.Time {
 		return time.Time{}
 	}
 	s, _ := obj["start"].(string)
+	if s == "" {
+		// Recovery records carry no "start" field — fall back to
+		// created_at so time-windowed analytics can see them.
+		s, _ = obj["created_at"].(string)
+	}
 	t, _ := time.Parse(time.RFC3339, s)
 	return t
 }
@@ -151,9 +156,14 @@ func loadMetricSeries(db *store.Store, metric string, since time.Time) ([]struct
 	case "strain":
 		resource, path = "cycle", []string{"score", "strain"}
 	case "recovery":
-		resource, path = "cycle_recovery", []string{"score", "recovery_score"}
+		// Stored under the "recovery" resource (GET /v2/recovery); the
+		// "cycle_recovery" name belongs to the per-cycle endpoint, which
+		// sync never writes.
+		resource, path = "recovery", []string{"score", "recovery_score"}
 	case "sleep":
-		resource, path = "sleep", []string{"score", "sleep_performance_percentage"}
+		// Sleep records sync under the "activity" resource
+		// (GET /v2/activity/sleep); there is no "sleep" sync resource.
+		resource, path = "activity", []string{"score", "sleep_performance_percentage"}
 	default:
 		return nil, fmt.Errorf("unknown metric %q (use strain, recovery, sleep)", metric)
 	}
@@ -306,7 +316,7 @@ func newClassifyCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
-			items, err := db.List("activity", 0)
+			items, err := db.List("activity-workout", 0)
 			if err != nil {
 				return err
 			}
@@ -490,7 +500,7 @@ func newSleepDebtCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
-			items, err := db.List("sleep", 0)
+			items, err := db.List("activity", 0)
 			if err != nil {
 				return err
 			}
@@ -738,7 +748,7 @@ func newJournalCmd(flags *rootFlags) *cobra.Command {
 				return err
 			}
 			defer db.Close()
-			items, err := db.List("cycle_recovery", 0)
+			items, err := db.List("recovery", 0)
 			if err != nil {
 				return err
 			}
