@@ -1,0 +1,29 @@
+{
+  "schema_version": 2,
+  "id": "sync-non-paginated-endpoints-and-agent-context-globals",
+  "applied_at": "2026-06-05",
+  "base_run_id": "20260506-162403",
+  "base_printing_press_version": "3.10.0",
+  "summary": "Sync must send no pagination/cursor/filter query params to custom-method endpoints (e.g. listAccessibleCustomers) that bind params strictly and 400 on unknown names; agent-context must expose root persistent flags; help/docs command examples must use the registered kebab-case command path.",
+  "reason": "The Google Ads REST surface exposes the sync root 'customers' as the custom method /v22/customers:listAccessibleCustomers, which takes no paging and rejects any unknown query parameter with HTTP 400 ('Unknown name \"limit\": Cannot bind query parameter'). The generated sync loop unconditionally appended limit=/after=/since=, so the root request failed on the very first call and the entire mirror never hydrated. Separately, agent-context omitted the root persistent flags (--data-source, --agent, --json, ...) so the machine-readable context was incomplete, and command Example strings plus the SKILL/README command reference were emitted in snake_case while the commands register in kebab-case, so the printed examples were not executable and SKILL.md failed the unknown-command verifier. auth help/docs also referenced a non-existent 'auth set-token' command instead of the real OAuth 'auth login' flow.",
+  "files": [
+    "internal/cli/sync.go",
+    "internal/cli/agent_context.go",
+    "internal/cli/helpers.go",
+    "internal/cli/sync_pagination_test.go",
+    "SKILL.md",
+    "README.md"
+  ],
+  "validated_outcome": "sync --dry-run constructs GET /v22/customers:listAccessibleCustomers with zero query params (no limit/after/since); agent-context emits schema_version 4 with a 21-entry global_flags array including data-source; verify_skill.py passes all checks including unknown-command; go build/vet/test pass; TestNonPaginatedResourcesSuppressesParams and TestDefaultSyncRootIsNonPaginated guard the sync fix.",
+  "upstream_issue": "",
+  "deferred_to_upstream": [
+    {
+      "feature": "Profiler-driven detection of non-paginated / custom-method (:verb) endpoints so the sync engine suppresses pagination params for them automatically.",
+      "reason": "The fix seeds nonPaginatedResources by hand for the customers root; the generator should derive this from the spec (custom ':method' verbs and endpoints with no paging fields) so every printed CLI with such an endpoint gets it without a library patch."
+    },
+    {
+      "feature": "Generator should emit per-command Example strings and the SKILL/README command reference using the registered kebab-case command path, and reference the real auth flow (auth login) rather than a hardcoded 'auth set-token'.",
+      "reason": "snake_case examples and a non-existent auth subcommand are template-level output bugs reproducible in any CLI whose resource/endpoint names contain underscores; fixing the templates upstream prevents re-emitting non-executable examples on the next regen."
+    }
+  ]
+}

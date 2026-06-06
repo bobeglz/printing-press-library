@@ -308,20 +308,32 @@ func syncResource(c interface {
 	var consumedTotal int
 	anomalyEmitted := false
 
+	// Some endpoints reject unknown query parameters outright (HTTP 400)
+	// instead of ignoring them. listAccessibleCustomers is one: it takes no
+	// pagination, cursor, or filter params and returns the full set in a
+	// single response, so sending limit/after/since makes Google reply
+	// "Invalid JSON payload received. Unknown name \"limit\": Cannot bind
+	// query parameter." Suppress all generated query params for these
+	// resources. See nonPaginatedResources.
+	// PATCH(amend-2026-06-05: suppress pagination params for non-paginated endpoints) — was sending limit= to listAccessibleCustomers, which 400s
+	suppressParams := nonPaginatedResources[resource]
+
 	for {
 		params := map[string]string{}
 
-		// Set page size
-		params[pageSize.limitParam] = strconv.Itoa(pageSize.limit)
+		if !suppressParams {
+			// Set page size
+			params[pageSize.limitParam] = strconv.Itoa(pageSize.limit)
 
-		// Set cursor for resume
-		if cursor != "" {
-			params[pageSize.cursorParam] = cursor
-		}
+			// Set cursor for resume
+			if cursor != "" {
+				params[pageSize.cursorParam] = cursor
+			}
 
-		// Set since filter
-		if effectiveSince != "" {
-			params[sinceParam] = effectiveSince
+			// Set since filter
+			if effectiveSince != "" {
+				params[sinceParam] = effectiveSince
+			}
 		}
 
 		data, err := c.Get(path, params)
@@ -1005,6 +1017,23 @@ var genericIDFieldFallbacks = []string{"id", "ID", "name", "uuid", "slug", "key"
 // failed child sync flagged x-critical: true exits non-zero just like a
 // flat-resource critical failure.
 var criticalResources = map[string]bool{}
+
+// nonPaginatedResources lists resources whose endpoint takes no pagination,
+// cursor, or filter query parameters and rejects unknown params with HTTP 400
+// rather than ignoring them. For these, the sync loop sends no generated query
+// params (limit/after/since) and consumes the single full response.
+//
+// customers maps to /v22/customers:listAccessibleCustomers, a custom method on
+// the Google Ads REST surface that returns all directly-accessible customer
+// resource names in one shot and binds every query parameter strictly. Because
+// customers is also the cascade root, sending limit= here failed the very first
+// request and left the entire mirror unhydrated. This should be derived by the
+// profiler from the spec (custom ":method" verbs / endpoints with no paging
+// fields); seeded here as a published-library patch until the generator learns
+// the pattern.
+var nonPaginatedResources = map[string]bool{
+	"customers": true,
+}
 
 // extractID resolves an item's primary-key field. It consults the
 // per-resource templated override first; on miss, it falls through to the
