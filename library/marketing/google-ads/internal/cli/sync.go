@@ -355,6 +355,27 @@ func syncResource(c interface {
 		// Strategy: try array first, then common wrapper keys.
 		items, nextCursor, hasMore := extractPageItems(data, pageSize.cursorParam)
 
+		// PATCH(amend-2026-06-05: hydrate scalar resource-name list responses) —
+		// listAccessibleCustomers returns {"resourceNames": ["customers/<id>", ...]}.
+		// extractPageItems surfaces those strings as items, but a bare JSON string
+		// has no extractable primary key, so UpsertBatch would skip every one
+		// (stored=0, all_items_failed_id_extraction) and the mirror would stay
+		// empty even though the request succeeded. Wrap each string into an
+		// ID-bearing object so one row lands per resource name, and preserve the
+		// raw envelope under the endpoint's path-derived ID so the single-object
+		// local read path (--data-source local) serves the original response shape.
+		if len(items) > 0 && scalarResourceNameResources[resource] {
+			if wrapped, ok := wrapScalarResourceNameItems(items); ok {
+				items = wrapped
+				if segs := strings.Split(strings.TrimRight(path, "/"), "/"); len(segs) > 0 {
+					if envErr := db.Upsert(resource, segs[len(segs)-1], data); envErr != nil {
+						// Non-fatal: per-item rows below still hydrate the mirror.
+						fmt.Fprintf(os.Stderr, "warning: failed to store raw %s envelope for local reads: %v\n", resource, envErr)
+					}
+				}
+			}
+		}
+
 		if len(items) == 0 {
 			// Single object response - try to store as-is
 			if err := upsertSingleObject(db, resource, data); err != nil {
@@ -1033,6 +1054,56 @@ var criticalResources = map[string]bool{}
 // the pattern.
 var nonPaginatedResources = map[string]bool{
 	"customers": true,
+}
+
+// scalarResourceNameResources lists resources whose endpoint returns an array
+// of resource-name STRINGS ({"resourceNames": ["customers/123", ...]}) rather
+// than objects. A bare JSON string survives extractPageItems but carries no
+// extractable primary key, so UpsertBatch would skip every item (stored=0,
+// sync_anomaly all_items_failed_id_extraction) and the mirror would stay
+// empty. For these resources the sync loop wraps each string into
+// {"resourceName": ..., "id": "<trailing path segment>", "customerId": ...}
+// before the batch upsert (customerId exists to populate the typed customers
+// table's customer_id column). Like nonPaginatedResources, this should be
+// derived by the profiler from the spec (sole response array typed string);
+// seeded here as a published-library patch until the generator learns the
+// pattern.
+// PATCH(amend-2026-06-05: hydrate scalar resource-name list responses)
+var scalarResourceNameResources = map[string]bool{
+	"customers": true,
+}
+
+// wrapScalarResourceNameItems converts a page of bare JSON-string items
+// ("customers/1234567890") into ID-bearing objects:
+//
+//	{"customerId": "1234567890", "id": "1234567890", "resourceName": "customers/1234567890"}
+//
+// The id is the trailing path segment of the resource name (the customer ID
+// for customers/*); when no '/' is present the whole string is used. Returns
+// ok=false when any item is not a non-empty JSON string — mixed or object
+// pages pass through to the normal batch path untouched.
+func wrapScalarResourceNameItems(items []json.RawMessage) ([]json.RawMessage, bool) {
+	wrapped := make([]json.RawMessage, 0, len(items))
+	for _, item := range items {
+		var s string
+		if err := json.Unmarshal(item, &s); err != nil || s == "" {
+			return nil, false
+		}
+		id := s
+		if i := strings.LastIndexByte(s, '/'); i >= 0 && i+1 < len(s) {
+			id = s[i+1:]
+		}
+		obj, err := json.Marshal(map[string]string{
+			"resourceName": s,
+			"id":           id,
+			"customerId":   id,
+		})
+		if err != nil {
+			return nil, false
+		}
+		wrapped = append(wrapped, obj)
+	}
+	return wrapped, true
 }
 
 // extractID resolves an item's primary-key field. It consults the

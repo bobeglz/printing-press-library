@@ -234,6 +234,7 @@ func classifyAPIError(err error, flags *rootFlags) error {
 			"\n      Run 'google-ads-pp-cli doctor' to check auth status."+
 			"\n      Response: "+cliutil.SanitizeErrorBody(msg), err))
 	case strings.Contains(msg, "HTTP 401"):
+		// PATCH(amend-2026-06-05: HTTP 401 hint references the real auth flow) — was 'auth set-token', which does not exist
 		return authErr(fmt.Errorf("%w\nhint: check your token. Re-authenticate with: google-ads-pp-cli auth login --client-id <id> --client-secret <secret>"+
 			"\n      or: export GOOGLE_ADS_ACCESS_TOKEN=<your-token>"+
 			"\n      Run 'google-ads-pp-cli doctor' to check auth status.", err))

@@ -164,6 +164,7 @@ func buildAgentContext(rootCmd *cobra.Command) agentContext {
 // never surfaces them. Listing them once at the top level keeps the machine-
 // readable context complete without duplicating them onto every command.
 // Output is sorted by flag name for stable diffs across regenerations.
+// PATCH(amend-2026-06-05: expose root persistent flags in agent-context) — schema_version bumped to 4
 func collectGlobalFlags(rootCmd *cobra.Command) []agentContextFlag {
 	out := []agentContextFlag{}
 	rootCmd.PersistentFlags().VisitAll(func(f *pflag.Flag) {
