@@ -306,15 +306,21 @@ func snippet(body, term string, width int) string {
 	if idx < 0 {
 		return truncate(body, width)
 	}
-	start := idx - width/2
+	// Work in runes to avoid slicing mid-character on multi-byte UTF-8.
+	runes := []rune(body)
+	// Find the rune index corresponding to byte offset idx in the original body.
+	runeIdx := len([]rune(body[:idx]))
+	half := width / 2
+	start := runeIdx - half
 	if start < 0 {
 		start = 0
 	}
-	end := idx + len(term) + width/2
-	if end > len(body) {
-		end = len(body)
+	termRunes := len([]rune(term))
+	end := runeIdx + termRunes + half
+	if end > len(runes) {
+		end = len(runes)
 	}
-	return body[start:end]
+	return string(runes[start:end])
 }
 
 // ──────────────────────────────────────────────────────────────────────────
