@@ -11,8 +11,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"monday-pp-cli/internal/cliutil"
-	"monday-pp-cli/internal/config"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +18,9 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	"github.com/mvanhorn/printing-press-library/library/productivity/monday/internal/cliutil"
+	"github.com/mvanhorn/printing-press-library/library/productivity/monday/internal/config"
 )
 
 type Client struct {
