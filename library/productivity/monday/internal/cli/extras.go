@@ -361,7 +361,7 @@ func newSQLCmd(flags *rootFlags) *cobra.Command {
 			if dbPath == "" {
 				dbPath = defaultDBPath("monday-pp-cli")
 			}
-			db, err := store.OpenWithContext(cmd.Context(), dbPath)
+			db, err := store.OpenReadOnly(dbPath)
 			if err != nil {
 				return fmt.Errorf("opening local database: %w", err)
 			}
