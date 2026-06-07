@@ -6,7 +6,8 @@
   "base_printing_press_version": "4.14.0",
   "summary": "The --wait-for-gate retry loop must re-mint the Clerk JWT before each attempt; a regen must keep per-retry EnsureFreshJWT or long waits die with a 401.",
   "reason": "The Clerk __session JWT is short-lived (minutes). A --wait-for-gate wait can run for many minutes/hours, so the JWT expires mid-wait. The retry only fires on the captcha gate (not 401), so without re-minting, a long wait surfaces a 401 instead of riding out the cooldown — defeating the feature's primary purpose. The client reads c.Config.AuthHeader() live, and EnsureFreshJWT no-ops when fresh and re-mints from the long-lived __client cookie when expired, so calling it before each attempt is cheap and correct. Caught by live dogfooding (a real --wait-for-gate run died with 401 after ~30m).",
-  "files": ["internal/auth/refresh.go", "internal/cli/suno_generate_run.go"],
-  "validated_outcome": "EnsureFreshJWT re-mints the stored JWT from the long-lived __client cookie when expired/near-expiry and no-ops when fresh; runGenerationFlow's submit closure calls it before each gated attempt.",
-  "reconciled_note": "Per-retry EnsureFreshJWT is restored in runGenerationFlow's submit closure under Option A, so a long --wait-for-gate wait re-mints the JWT before each attempt rather than dying with a 401. The mechanism still lives in internal/auth/refresh.go and is also invoked by the session-refresh path that session-store-and-verify / decouple-studio-cookies-from-jwt own."
+  "files": [
+    "internal/cli/suno_generate_run.go"
+  ],
+  "validated_outcome": "A --wait-for-gate run that spans past the JWT lifetime keeps retrying and eventually generates, instead of failing with 401 Unauthorized."
 }
