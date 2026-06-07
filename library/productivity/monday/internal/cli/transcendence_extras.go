@@ -192,6 +192,7 @@ func newVelocityCmd(flags *rootFlags) *cobra.Command {
 	cmd.Flags().StringVar(&statusColumn, "status-column", "status", "Column ID or title that holds status.")
 	cmd.Flags().StringVar(&doneStatus, "done-status", "Done", "Status label that means \"completed\" (used to count entries into done).")
 	cmd.Flags().IntVar(&maxPages, "max-pages", 5, "Maximum activity-log pages to scan (5000 events each).")
+	_ = cmd.MarkFlagRequired("board")
 	return cmd
 }
 

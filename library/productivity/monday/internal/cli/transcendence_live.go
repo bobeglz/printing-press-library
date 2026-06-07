@@ -773,7 +773,7 @@ func newColumnDriftCmd(flags *rootFlags) *cobra.Command {
 			// Persist snapshot
 			_ = os.MkdirAll(filepath.Dir(snapshotPath), 0o755)
 			if b, err := json.MarshalIndent(current, "", "  "); err == nil {
-				_ = os.WriteFile(snapshotPath, b, 0o644)
+				_ = os.WriteFile(snapshotPath, b, 0o600)
 			}
 			result := map[string]any{
 				"board_id": boardID,
