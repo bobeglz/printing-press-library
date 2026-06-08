@@ -308,8 +308,8 @@ These capabilities aren't available in any other tool for this API.
 - `x-twitter-pp-cli users get-reposts-of-me` — Retrieves a list of Posts that repost content from the authenticated user.
 - `x-twitter-pp-cli users get-trends-personalized-trends` — Retrieves personalized trending topics for the authenticated user.
 - `x-twitter-pp-cli users bookmarks find [query]` — Searches locally synced bookmarks by keyword and/or author without another API read.
-- `x-twitter-pp-cli users likes post <id>` — Likes a post on behalf of the authenticated user.
-- `x-twitter-pp-cli users likes unlike-post <id> <tweet_id>` — Unlikes a post on behalf of the authenticated user.
+- `x-twitter-pp-cli users likes post <user_id> --tweet-id <tweet_id>` — Likes a post on behalf of the authenticated user.
+- `x-twitter-pp-cli users likes unlike-post <user_id> <tweet_id>` — Unlikes a post on behalf of the authenticated user.
 - `x-twitter-pp-cli users search` — Retrieves a list of Users matching a search query.
 
 **webhooks** — Manage webhooks
@@ -377,7 +377,7 @@ Setup sequence:
 
 1. Attach the app to a Project in the X developer console.
 2. Copy the app Bearer Token into `X_BEARER_TOKEN` for app-only public reads.
-3. Enable OAuth2 with suitable scopes, complete the authorization-code + PKCE flow, and set the resulting user-context token in `X_OAUTH2_USER_TOKEN`.
+3. Enable OAuth2 with suitable scopes such as `tweet.read`, `tweet.write`, `users.read`, `offline.access`, and `bookmark.read` (required if you intend to sync or search bookmarks), complete the authorization-code + PKCE flow, and set the resulting user-context token in `X_OAUTH2_USER_TOKEN`.
 4. Separately run `x-twitter-pp-cli auth login --chrome` only when using `articles ...` commands.
 
 When X returns `Unsupported Authentication` with `Application-Only is forbidden`, the command requires OAuth2 user-context auth. Fix `auth_lanes.oauth2_user_context`; cookie auth and app-only bearer auth will not satisfy that endpoint.

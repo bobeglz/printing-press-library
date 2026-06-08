@@ -136,7 +136,7 @@ Setup sequence:
 1. Attach the app to a Project in the X developer console (`console.x.com`). Any environment, including Development, unlocks v2 API access; standalone-app tokens are rejected.
 2. Set app permissions to Read and write when you need posting or other mutations.
 3. Copy the app Bearer Token into `X_BEARER_TOKEN` for app-only public reads.
-4. Enable OAuth2 with suitable scopes such as `tweet.read`, `tweet.write`, `users.read`, and `offline.access`, complete the authorization-code + PKCE flow, and set the resulting user-context token in `X_OAUTH2_USER_TOKEN`.
+4. Enable OAuth2 with suitable scopes such as `tweet.read`, `tweet.write`, `users.read`, `offline.access`, and `bookmark.read` (required if you intend to sync or search bookmarks), complete the authorization-code + PKCE flow, and set the resulting user-context token in `X_OAUTH2_USER_TOKEN`.
 5. Separately run `x-twitter-pp-cli auth login --chrome` only when using X Articles commands such as `articles-publish-md` or `articles ...` (needs `pycookiecheat` or `press-auth`; manual DevTools fallback is available).
 
 A Development project does not limit the account; capability is set by app permissions and the account API tier. As of Feb 2026 X bills reads/writes per-use and restricts programmatic replies/quotes/@mentions; self-reply threads (`thread compose`) still work.
@@ -543,8 +543,8 @@ Endpoints related to retrieving, managing relationships of Users
 - **`x-twitter-pp-cli users get-reposts-of-me`** - Retrieves a list of Posts that repost content from the authenticated user.
 - **`x-twitter-pp-cli users get-trends-personalized-trends`** - Retrieves personalized trending topics for the authenticated user.
 - **`x-twitter-pp-cli users bookmarks find [query]`** - Searches your locally synced bookmarks by keyword and/or author without another API read.
-- **`x-twitter-pp-cli users likes post <id>`** - Likes a post on behalf of the authenticated user.
-- **`x-twitter-pp-cli users likes unlike-post <id> <tweet_id>`** - Unlikes a post on behalf of the authenticated user.
+- **`x-twitter-pp-cli users likes post <user_id> --tweet-id <tweet_id>`** - Likes a post on behalf of the authenticated user.
+- **`x-twitter-pp-cli users likes unlike-post <user_id> <tweet_id>`** - Unlikes a post on behalf of the authenticated user.
 - **`x-twitter-pp-cli users search`** - Retrieves a list of Users matching a search query.
 
 ### webhooks
