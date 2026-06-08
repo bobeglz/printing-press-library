@@ -7004,6 +7004,65 @@
       }
     },
     {
+      "name": "openart",
+      "category": "ai",
+      "api": "OpenArt",
+      "description": "Generate videos and images on OpenArt from the terminal. Spend your existing OpenArt credits across Seedance, Kling,...",
+      "search_terms": [
+        "openart",
+        "openart-pp-cli",
+        "Generate videos and images on OpenArt from the terminal. Spend your existing OpenArt credits across Seedance, Kling, Veo, Wan, Grok Imagine and more.",
+        "Image generation",
+        "image gen",
+        "Submit + poll + download images in one command (Nano Banana verified; GPT Image 2, FLUX 2 Pro, Seedream, Imagen 4, Qwen Image gated as --accept-experimental).",
+        "Disable Seedance audio",
+        "video gen",
+        "--no-audio flag turns off Seedance's auto-generated audio track. Workaround for OutputAudioSensitiveContentDetected moderation failures; halves the cost on Seedance 2.0 normal mode.",
+        "Cost preview before submit",
+        "cost estimate",
+        "Project the credit cost of a generation before you spend.",
+        "Credit burn breakdown",
+        "credits burn",
+        "Aggregate credit spend by model, tool, day, or project.",
+        "Credit runway forecast",
+        "credits forecast",
+        "Project how many weeks of runway your current balance gives at recent burn.",
+        "Cheapest-model lookup",
+        "models cheapest",
+        "Find the cheapest model that satisfies a target shape (type/duration/resolution/features).",
+        "Cross-model fan-out compare",
+        "compare",
+        "Run one prompt across multiple models in parallel; return a side-by-side report with cost and URLs.",
+        "Replay a past generation",
+        "prompts replay",
+        "Re-run a past generation, optionally on a different model, with parameter bumps.",
+        "Prompt FTS recovery search",
+        "prompts find",
+        "Full-text search prior generations by prompt text with OpenArt-specific filters (model, audio, duration, starred, since).",
+        "Prompt spend leaderboard",
+        "prompts top",
+        "Rank past prompts by total credit spend over a window.",
+        "Library stats blob",
+        "stats",
+        "One-shot stats over the local media library: counts per type/model/period and rolling spend."
+      ],
+      "path": "library/ai/openart",
+      "printer": "mvanhorn",
+      "printer_name": "Matt Van Horn",
+      "mcp": {
+        "binary": "openart-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 22,
+        "public_tool_count": 0,
+        "auth_type": "cookie",
+        "env_vars": [],
+        "mcp_ready": "partial",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "openfda",
       "category": "developer-tools",
       "api": "OpenFDA",
@@ -11961,6 +12020,56 @@
         "env_vars": [
           "X_BEARER_TOKEN",
           "X_OAUTH2_USER_TOKEN"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
+      "name": "xai",
+      "category": "ai",
+      "api": "xAI",
+      "description": "REST API for xAI compatible with other providers.",
+      "search_terms": [
+        "xai",
+        "xai-pp-cli",
+        "REST API for xAI compatible with other providers.",
+        "Model picker",
+        "model-picker",
+        "Rank live xAI models for a task using the authenticated model catalog.",
+        "Cost preview",
+        "cost-preview",
+        "Estimate xAI token cost from live model pricing metadata before sending a request.",
+        "Model capability matrix",
+        "model-capabilities",
+        "Build a live capability matrix across chat, reasoning, vision, embedding, image, and video models.",
+        "Smoke chat",
+        "smoke-chat",
+        "Verify that the authenticated key can run a tiny xAI chat completion.",
+        "Credential capability audit",
+        "api-key",
+        "Inspect the authenticated xAI API key status and permissions without exposing the secret value.",
+        "Agent raw endpoint browser",
+        "api",
+        "Browse the complete generated xAI endpoint surface by interface for agent planning and fallback calls."
+      ],
+      "path": "library/ai/xai",
+      "printer": "cathrynlavery",
+      "printer_name": "Cathryn Lavery",
+      "creator": {
+        "handle": "cathrynlavery",
+        "name": "Cathryn Lavery"
+      },
+      "mcp": {
+        "binary": "xai-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 41,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "XAI_API_KEY"
         ],
         "mcp_ready": "full",
         "spec_format": "openapi3"
