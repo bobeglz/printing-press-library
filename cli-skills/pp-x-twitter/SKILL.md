@@ -42,7 +42,7 @@ go install github.com/mvanhorn/printing-press-library/library/social-and-messagi
 
 If `--version` reports "command not found" after install, the runtime cannot see the binary directory on `$PATH`. Do not proceed with skill commands until verification succeeds.
 
-Mirrors the official X v2 API and adds what no other X tool has: a local SQLite store you can sync once and query many times with FTS5 search and group-by analytics, agent-native --json/--select output, and an MCP server that exposes the whole surface to AI agents through token-efficient orchestration plus named multi-step intents. Reconstruct conversation threads offline with `thread show`, compose self-reply threads from markdown with `thread compose`, author long-form X Articles from markdown with `articles-publish-md`, and rescue your bookmark graveyard with `users bookmarks find` — keyword and author search over your synced bookmarks, which X itself gives you no way to search.
+Mirrors the official X v2 API and adds what no other X tool has: a local SQLite store you can sync once and query many times with FTS5 search and group-by analytics, agent-native --json/--select output, and an MCP server that exposes the whole surface to AI agents through token-efficient orchestration plus named multi-step intents. Start pasted-link workflows with `post resolve`, use `thread context` when a post needs parent/quote/reply context, save durable source material with `collection save/list/export`, reconstruct synced conversation threads offline with `thread show`, compose self-reply threads from markdown with `thread compose`, author long-form X Articles from markdown with `articles-publish-md`, and rescue your bookmark graveyard with `users bookmarks find` — keyword and author search over your synced bookmarks, which X itself gives you no way to search.
 
 ## When to Use This CLI
 
@@ -53,6 +53,31 @@ Reach for this CLI when a task involves reading, searching, or archiving X (Twit
 These capabilities aren't available in any other tool for this API.
 
 ### Local state that compounds
+- **`post resolve`** — Normalize any X post URL or raw post ID into a canonical structured record. It prefers local data in auto mode, falls back to public v2 reads when needed, includes provenance (`live`, `local`, or `mixed`), and emits suggested next workflow commands.
+
+  _Use this as the first command when an agent starts from a pasted X link. It avoids brittle URL parsing and returns stable fields for downstream workflows._
+
+  ```bash
+  x-twitter-pp-cli post resolve https://x.com/user/status/123 --agent
+  x-twitter-pp-cli post resolve 123 --include author,media,links,refs,metrics --agent
+  ```
+- **`thread context`** — Resolve a post URL or ID, include parent and quoted posts when available, and optionally include bounded replies from the local store and/or recent search.
+
+  _Use this before summarizing or drafting around a post. `thread show` is still the pure offline conversation reconstruction command; `thread context` is the URL-first workflow that can mix local and live data._
+
+  ```bash
+  x-twitter-pp-cli thread context https://x.com/user/status/123 --agent
+  x-twitter-pp-cli thread context 123 --replies --depth 3 --limit 100 --agent
+  ```
+- **`collection save/list/export`** — Save resolved X posts into durable named local collections, then list or export them as markdown, JSON, JSONL, or CSV. This never writes to X; it only writes the local SQLite store.
+
+  _Use collections for research libraries, launch mentions, examples, recruiting/source material, and anything an agent should reuse offline after the first API read._
+
+  ```bash
+  x-twitter-pp-cli collection save https://x.com/user/status/123 --collection ai-agents --note "Good framing" --agent
+  x-twitter-pp-cli collection list ai-agents --agent
+  x-twitter-pp-cli collection export ai-agents --format markdown
+  ```
 - **`thread show`** — Rebuild a full conversation thread from your locally synced posts — ordered and depth-tagged — without re-spending API read credits.
 
   _When an agent needs the shape of a discussion (who replied to whom, in order), reach for this instead of paginating the search API and re-assembling the tree by hand._
