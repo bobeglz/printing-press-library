@@ -6941,6 +6941,48 @@
       ]
     },
     {
+      "name": "nypl-digital-collections",
+      "category": "other",
+      "api": "Nypl Digital Collections",
+      "description": "New York Public Library Digital Collections API. Source docs: https://api.repo.nypl.org/.",
+      "search_terms": [
+        "nypl-digital-collections",
+        "Nypl Digital Collections",
+        "nypl-digital-collections-pp-cli",
+        "New York Public Library Digital Collections API. Source docs: https://api.repo.nypl.org/.",
+        "Story discovery plans",
+        "stories discover",
+        "Expand a seed person or topic into NYPL-friendly narrative clusters, related characters, and archive search queries.",
+        "Research plan execution",
+        "search run-plan",
+        "Execute or preview story discovery plans against NYPL item search with public-domain filtering and bounded per-query limits.",
+        "Local research workspaces",
+        "workspace",
+        "Save search runs and deduped evidence items into local reusable research workspaces.",
+        "Story dossiers",
+        "stories dossier",
+        "Emit Markdown or JSON research dossiers combining narrative clusters, related figures, search prompts, and ranked item candidates."
+      ],
+      "path": "library/other/nypl-digital-collections",
+      "printer": "kierandotai",
+      "printer_name": "kierandotai",
+      "mcp": {
+        "binary": "nypl-digital-collections-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 21,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "NYPL_DIGITAL_COLLECTIONS_NYPL_TOKEN"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
+      }
+    },
+    {
       "name": "obsidian",
       "category": "productivity",
       "api": "Obsidian",
