@@ -80,42 +80,89 @@ func newSinceCmd(flags *rootFlags) *cobra.Command {
 			vars := map[string]any{
 				"id":    boardIDs,
 				"limit": limit,
-				"page":  1,
 				"from":  from,
 			}
 			if uids := splitCSV(userIDs); len(uids) > 0 {
 				vars["user_ids"] = uids
 			}
-			data, err := c.GraphQL(querySinceActivity, vars)
-			if err != nil {
-				return classifyAPIError(err, flags)
+			// activity_logs paginates per board, so a single page-1 call drops
+			// every event past --limit on a busy board, contradicting the
+			// "tail every change since a window" promise. Walk pages and
+			// accumulate per board until every board returns a short (< limit)
+			// page, i.e. no board has more activity. maxSincePages is a runaway
+			// guard, not a functional limit; hitting it is surfaced on stderr
+			// rather than silently truncating.
+			const maxSincePages = 200
+			type boardAccum struct {
+				name    string
+				entries []json.RawMessage
 			}
-			if dryRunOK(flags) {
-				return nil
+			order := make([]string, 0, len(boardIDs))
+			accum := make(map[string]*boardAccum)
+			truncated := false
+			for page := 1; ; page++ {
+				vars["page"] = page
+				data, err := c.GraphQL(querySinceActivity, vars)
+				if err != nil {
+					return classifyAPIError(err, flags)
+				}
+				if dryRunOK(flags) {
+					return nil
+				}
+				rawBoards, err := pluckJSONField(data, "boards")
+				if err != nil {
+					return err
+				}
+				var boards []map[string]json.RawMessage
+				if err := json.Unmarshal(rawBoards, &boards); err != nil {
+					return fmt.Errorf("parsing boards: %w", err)
+				}
+				maxRows := 0
+				for _, b := range boards {
+					var id, name string
+					_ = json.Unmarshal(b["id"], &id)
+					_ = json.Unmarshal(b["name"], &name)
+					var logs []json.RawMessage
+					if raw := b["activity_logs"]; len(raw) > 0 {
+						_ = json.Unmarshal(raw, &logs)
+					}
+					ba, ok := accum[id]
+					if !ok {
+						ba = &boardAccum{name: name}
+						accum[id] = ba
+						order = append(order, id)
+					}
+					ba.entries = append(ba.entries, logs...)
+					if len(logs) > maxRows {
+						maxRows = len(logs)
+					}
+				}
+				if maxRows < limit {
+					break
+				}
+				if page >= maxSincePages {
+					truncated = true
+					break
+				}
 			}
-			rawBoards, err := pluckJSONField(data, "boards")
-			if err != nil {
-				return err
-			}
-			var boards []map[string]json.RawMessage
-			if err := json.Unmarshal(rawBoards, &boards); err != nil {
-				return fmt.Errorf("parsing boards: %w", err)
+			if truncated {
+				fmt.Fprintf(os.Stderr, "warning: stopped after %d pages (limit %d); results may be incomplete. Narrow --board or the window for full coverage.\n", maxSincePages, limit)
 			}
 			type entry struct {
 				BoardID   string          `json:"board_id"`
 				BoardName string          `json:"board_name"`
 				Activity  json.RawMessage `json:"activity"`
 			}
-			merged := make([]entry, 0, len(boards))
-			for _, b := range boards {
-				e := entry{}
-				_ = json.Unmarshal(b["id"], &e.BoardID)
-				_ = json.Unmarshal(b["name"], &e.BoardName)
-				e.Activity = b["activity_logs"]
-				if string(e.Activity) == "" {
-					e.Activity = json.RawMessage("[]")
+			merged := make([]entry, 0, len(order))
+			for _, id := range order {
+				ba := accum[id]
+				activity := json.RawMessage("[]")
+				if len(ba.entries) > 0 {
+					if encoded, err := json.Marshal(ba.entries); err == nil {
+						activity = encoded
+					}
 				}
-				merged = append(merged, e)
+				merged = append(merged, entry{BoardID: id, BoardName: ba.name, Activity: activity})
 			}
 			return printJSONFiltered(cmd.OutOrStdout(), merged, flags)
 		},

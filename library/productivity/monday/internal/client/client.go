@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/monday/internal/cliutil"
@@ -31,6 +32,12 @@ type Client struct {
 	NoCache    bool
 	cacheDir   string
 	limiter    *cliutil.AdaptiveLimiter
+	// tokenMu serializes the read-check-refresh-write of OAuth token fields in
+	// authHeader. sync shares one *Client across worker goroutines, so without
+	// it concurrent requests race on Config.{AccessToken,TokenExpiry,
+	// RefreshToken} and can double-refresh, consuming a refresh token a sibling
+	// already used.
+	tokenMu sync.Mutex
 }
 
 // APIError carries HTTP status information for structured exit codes.
@@ -349,6 +356,14 @@ func (c *Client) authHeader() (string, error) {
 	if c.Config == nil {
 		return "", nil
 	}
+	// Hold tokenMu across the expiry check, refresh, and header read so a
+	// shared client used by concurrent sync workers cannot race on the OAuth
+	// token fields. The expiry check is re-evaluated under the lock, so a
+	// goroutine that waited on a sibling's refresh sees the fresh token and
+	// does not refresh again. For api_key auth the refresh branch is never
+	// taken, so this only adds a brief uncontended lock to the common path.
+	c.tokenMu.Lock()
+	defer c.tokenMu.Unlock()
 	if c.Config.AccessToken != "" && !c.Config.TokenExpiry.IsZero() && time.Now().After(c.Config.TokenExpiry) && c.Config.RefreshToken != "" {
 		if err := c.refreshAccessToken(); err != nil {
 			return "", err
