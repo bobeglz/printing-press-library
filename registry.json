@@ -13052,6 +13052,67 @@
       }
     },
     {
+      "name": "yeswehack",
+      "category": "developer-tools",
+      "api": "YesWeHack",
+      "description": "Every YesWeHack researcher feature, plus an offline SQLite-backed cockpit for scope cartography, drift detection,...",
+      "search_terms": [
+        "yeswehack",
+        "yeswehack-pp-cli",
+        "Every YesWeHack researcher feature, plus an offline SQLite-backed cockpit for scope cartography, drift detection, draft reports, and hacktivity learning.",
+        "Scope drift report",
+        "programs scope-drift",
+        "See what changed in any program's scope this week — assets added, removed, or modified, with first-seen dates.",
+        "Cross-program shared assets",
+        "scopes overlap",
+        "Surface assets (host or wildcard) that appear in two or more of your invited programs, ranked by best payout.",
+        "Weekend slate",
+        "triage weekend",
+        "Ranked plan for a short hunting session - newly added scope, reports needing your response, and trending CWEs in your specialty.",
+        "Pre-submit dedupe",
+        "report dedupe",
+        "FTS5 search over the public hacktivity feed plus your own reports for title, asset, or CWE overlap — exits 2 if a high-confidence collision exists.",
+        "Program fit ranker",
+        "programs fit",
+        "Rank invited and public programs by how well your historical CWE specialties match each program's hacktivity payout pattern.",
+        "Hacktivity CWE trends per program",
+        "hacktivity trends",
+        "Histogram of disclosed report categories and average bounty for one program over a time window.",
+        "Calendar of program events",
+        "events calendar",
+        "Chronological view of platform events, payout deadlines, and CTFs gating private invites - filtered to programs you are invited to.",
+        "CVSS sanity check",
+        "report cvss-check",
+        "Parse a CVSS 3.1 vector, recompute its base score, and flag impossible combinations against report steps text - rule-based, no LLM.",
+        "Draft report scaffold",
+        "report draft",
+        "Create a markdown draft pre-filled with the program's reward grid, accepted severity levels, and an allowed asset picker from local scopes - no network call.",
+        "Submit a draft (guard-railed)",
+        "report submit",
+        "Submit a drafted report after dry-run preview, in-scope validation, and automatic pre-submit dedupe. Requires --confirm.",
+        "Hacktivity learning brief",
+        "hacktivity learn",
+        "Filtered slice of disclosed reports for a program and CWE - top N by bounty, with severity and writeup links, in pipe-friendly JSON."
+      ],
+      "path": "library/developer-tools/yeswehack",
+      "printer": "mvanhorn",
+      "printer_name": "Matt Van Horn",
+      "mcp": {
+        "binary": "yeswehack-pp-mcp",
+        "transports": [
+          "stdio"
+        ],
+        "tool_count": 17,
+        "public_tool_count": 10,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "YESWEHACK_JWT"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "youtube",
       "category": "media-and-entertainment",
       "api": "Youtube Data",
