@@ -16,6 +16,7 @@ import (
 // into the local pp_created ledger so pp-cleanup can find it later.
 func newIssuesCreateCmd(flags *rootFlags) *cobra.Command {
 	var titleFlag, teamFlag, descFlag, assigneeFlag, projectFlag, stateFlag, parentFlag string
+	var stateNameFlag, stateTypeFlag string
 	var descFile string
 	var descStdin bool
 	var priorityFlag int
@@ -36,6 +37,9 @@ Pass --parent with an issue identifier or UUID to create the new issue as a
 sub-issue under an existing parent.`,
 		Example: `  # Quick test ticket in team ENG
   linear-pp-cli issues create --title "pp-test sanity" --team ENG
+
+  # Open the issue directly in a named workflow state
+  linear-pp-cli issues create --title "x" --team ENG --state-name "In Progress"
 
   # Dry-run (shows the GraphQL request without sending)
   linear-pp-cli issues create --title "x" --team ENG --dry-run
@@ -94,6 +98,19 @@ sub-issue under an existing parent.`,
 				}
 			}
 
+			stateSelectors := 0
+			for _, v := range []string{stateFlag, stateNameFlag, stateTypeFlag} {
+				if v != "" {
+					stateSelectors++
+				}
+			}
+			if stateSelectors > 1 {
+				return usageErr(fmt.Errorf("pass exactly one of --state, --state-name, or --state-type"))
+			}
+			if stateFlag != "" && !store.IsUUID(stateFlag) {
+				return usageErr(fmt.Errorf("--state expects a workflow state UUID (got %q); use --state-name %q, or run 'linear-pp-cli workflow-states list --team %s' to find the UUID", stateFlag, stateFlag, teamFlag))
+			}
+
 			input := map[string]any{
 				"title":  titleFlag,
 				"teamId": teamID,
@@ -130,6 +147,12 @@ sub-issue under an existing parent.`,
 					out["media"] = mediaFlag
 					out["media_public"] = mediaPublic
 				}
+				if stateNameFlag != "" {
+					out["state_name"] = stateNameFlag
+				}
+				if stateTypeFlag != "" {
+					out["state_type"] = stateTypeFlag
+				}
 				return renderMutationDryRun(cmd, flags, "would_create_issue", "issueCreate", out)
 			}
 
@@ -143,6 +166,16 @@ sub-issue under an existing parent.`,
 					return classifyLiveReadError(err, flags)
 				}
 				input["parentId"] = parentID
+			}
+			if stateNameFlag != "" || stateTypeFlag != "" {
+				if teamInfo.ID == "" {
+					return usageErr(fmt.Errorf("--state-name/--state-type resolve against the team UUID, but team %q is not in the local store; pass --team <uuid>, run 'linear-pp-cli sync' first, or use --state <uuid>", teamFlag))
+				}
+				stateID, err := resolveWorkflowState(c, teamInfo, stateNameFlag, stateTypeFlag)
+				if err != nil {
+					return classifyLiveReadError(err, flags)
+				}
+				input["stateId"] = stateID
 			}
 			if len(labelsFlag) > 0 {
 				if err := validateIssueLabelTeams(c, labelsFlag, teamInfo); err != nil {
@@ -324,7 +357,9 @@ sub-issue under an existing parent.`,
 	cmd.Flags().IntVar(&priorityFlag, "priority", 0, "Priority: 1=Urgent, 2=High, 3=Medium, 4=Low (0=None)")
 	cmd.Flags().StringVar(&assigneeFlag, "assignee", "", "Assignee user UUID")
 	cmd.Flags().StringVar(&projectFlag, "project", "", "Project UUID")
-	cmd.Flags().StringVar(&stateFlag, "state", "", "Workflow state UUID")
+	cmd.Flags().StringVar(&stateFlag, "state", "", "Workflow state UUID (see 'workflow-states list --team <key>'); use --state-name to set by name")
+	cmd.Flags().StringVar(&stateNameFlag, "state-name", "", "Workflow state name (e.g. \"In Progress\"); resolved against --team")
+	cmd.Flags().StringVar(&stateTypeFlag, "state-type", "", "Workflow state type (triage, backlog, unstarted, started, completed, canceled); resolved against --team")
 	cmd.Flags().StringVar(&parentFlag, "parent", "", "Parent issue identifier or UUID; creates the issue as a sub-issue")
 	cmd.Flags().StringSliceVar(&labelsFlag, "label", nil, "Label UUIDs (repeatable)")
 	cmd.Flags().StringSliceVar(&mediaFlag, "media", nil, "Upload file and append it to the description markdown (repeatable)")
