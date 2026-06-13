@@ -1244,6 +1244,55 @@
       }
     },
     {
+      "name": "autotempest",
+      "category": "commerce",
+      "api": "AutoTempest",
+      "description": "Every AutoTempest car-search source in your terminal, with a local store, cross-source VIN dedupe",
+      "search_terms": [
+        "autotempest",
+        "autotempest-pp-cli",
+        "Every AutoTempest car-search source in your terminal, with a local store, cross-source VIN dedupe, and price-drop tracking no AutoTempest tool has.",
+        "Price-drop watch",
+        "drops",
+        "Surface listings whose price fell since a prior find or watch run, biggest drop first.",
+        "Cross-source VIN dedupe",
+        "dedupe",
+        "Collapse the same physical VIN listed on multiple marketplaces into one row with every source and price, cheapest first.",
+        "Deal-vs-market score",
+        "deal",
+        "Rank listings by mechanical price delta from the median of comparable cars (same model, year, mileage band) in your local store.",
+        "Cross-source price spread",
+        "spread",
+        "Report min, median, and max price per marketplace for a model so you see which sources run cheap or expensive.",
+        "Saved-search registry and replay",
+        "watch",
+        "Register named searches with their filters, then replay them through run so drops and diff have snapshots to compare.",
+        "Live auction slice",
+        "auctions",
+        "Filter to eBay auction listings with live current bid and bid count, sortable by bid."
+      ],
+      "path": "library/commerce/autotempest",
+      "printer": "richardadonnell",
+      "printer_name": "richardadonnell",
+      "creator": {
+        "handle": "richardadonnell",
+        "name": "richardadonnell"
+      },
+      "mcp": {
+        "binary": "autotempest-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 2,
+        "public_tool_count": 2,
+        "auth_type": "none",
+        "env_vars": [],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "azure-cost-admin",
       "category": "cloud",
       "api": "Azure Cost Admin",
