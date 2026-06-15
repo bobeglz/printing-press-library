@@ -47,6 +47,11 @@ func ttCurrentTopics(ctx context.Context, flags *rootFlags, db *store.Store) ([]
 		}
 		out = append(out, t)
 	}
+	if err := rows.Err(); err != nil {
+		// Discard a partial result so a mid-iteration cursor error degrades to
+		// "no topics available" rather than a misleading partial snapshot.
+		return nil, "local"
+	}
 	return out, "local"
 }
 

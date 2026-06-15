@@ -69,7 +69,7 @@ func newNovelTimeTravelCmd(flags *rootFlags) *cobra.Command {
 					fmt.Fprintf(cmd.ErrOrStderr(), "live fetch failed (%v); falling back to local mirror\n", err)
 					local, lerr := timeTravelLocal(ctx, ttResolveDB(dbPath), date, topic, limit)
 					if lerr != nil {
-						return classifyAPIError(err, flags)
+						return classifyAPIError(fmt.Errorf("live fetch failed (%v) and local fallback failed: %w", err, lerr), flags)
 					}
 					tweets, source = local, "local"
 				} else {
@@ -145,6 +145,9 @@ func timeTravelLocal(ctx context.Context, dbPath, date, topic string, limit int)
 			return nil, err
 		}
 		raw = append(raw, json.RawMessage(d))
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterating resource rows: %w", err)
 	}
 	all := decodeTweets(raw)
 

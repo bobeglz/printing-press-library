@@ -128,7 +128,7 @@ func newNovelEvidenceCmd(flags *rootFlags) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&dbPath, "db", "", "Database path (default: ~/.local/share/techtwitter-pp-cli/data.db)")
-	cmd.Flags().StringVar(&window, "window", "24h", "Lookback window (24h, 48h, 7d)")
+	cmd.Flags().StringVar(&window, "window", "24h", "Lookback window (24h, 48h, 7d); ignored for the narrative-alert kind (always the current heatmap)")
 	cmd.Flags().IntVar(&limit, "limit", 8, "Maximum evidence rows (max 20)")
 	return cmd
 }
@@ -174,6 +174,9 @@ func buildEvidence(db *store.Store, kind, cutoff string, limit int) ([]ttEvidenc
 		}
 
 	case "narrative-alert":
+		// The heatmap (`command` table) holds only the latest snapshot of topic
+		// momentum, so this kind is time-invariant: `--window`/`cutoff` does not
+		// apply here and is intentionally a no-op (documented in the command Long).
 		trows, err := db.DB().Query(`SELECT keyword, COALESCE(slug,''), COALESCE(count,0), COALESCE(engagement,0)
 			FROM command WHERE keyword IS NOT NULL ORDER BY engagement DESC LIMIT ?`, limit)
 		if err != nil {
@@ -194,6 +197,9 @@ func buildEvidence(db *store.Store, kind, cutoff string, limit int) ([]ttEvidenc
 				WhyIncluded:  "Topic with high recent momentum.",
 				CanonicalURL: "https://www.techtwitter.com/topics/" + slug,
 			})
+		}
+		if err := trows.Err(); err != nil {
+			return nil, fmt.Errorf("iterating topic rows: %w", err)
 		}
 
 	case "read-list":

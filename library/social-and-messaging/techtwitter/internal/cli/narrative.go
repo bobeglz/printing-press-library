@@ -85,7 +85,10 @@ func newNovelNarrativeCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return err
 			}
-			current, _ := ttSnapshotTopics(db.DB(), captured)
+			current, err := ttSnapshotTopics(db.DB(), captured)
+			if err != nil {
+				return fmt.Errorf("loading current snapshot: %w", err)
+			}
 			result := ttNarrativeResult{CapturedAt: captured, Source: source, Narratives: []ttNarrativeRow{}}
 
 			prior := ttPriorSnapshotWithin(times, captured, ttCutoff(dur))
@@ -105,7 +108,10 @@ func newNovelNarrativeCmd(flags *rootFlags) *cobra.Command {
 				}
 			} else {
 				result.ComparedTo = prior
-				priorTopics, _ := ttSnapshotTopics(db.DB(), prior)
+				priorTopics, err := ttSnapshotTopics(db.DB(), prior)
+				if err != nil {
+					return fmt.Errorf("loading prior snapshot: %w", err)
+				}
 				for kw, cur := range current {
 					p, existed := priorTopics[kw]
 					row := ttNarrativeRow{Keyword: kw, Slug: cur.Slug, Count: cur.Count}

@@ -87,7 +87,10 @@ func newNovelMomentumCmd(flags *rootFlags) *cobra.Command {
 			}
 
 			result := ttMomentumResult{CapturedAt: captured, Source: source, Topics: []ttMomentumRow{}}
-			current, _ := ttSnapshotTopics(db.DB(), captured)
+			current, err := ttSnapshotTopics(db.DB(), captured)
+			if err != nil {
+				return fmt.Errorf("loading current snapshot: %w", err)
+			}
 
 			prior := ttPriorSnapshotWithin(times, captured, ttCutoff(dur))
 			if prior == "" {
@@ -101,7 +104,10 @@ func newNovelMomentumCmd(flags *rootFlags) *cobra.Command {
 				}
 			} else {
 				result.ComparedTo = prior
-				priorTopics, _ := ttSnapshotTopics(db.DB(), prior)
+				priorTopics, err := ttSnapshotTopics(db.DB(), prior)
+				if err != nil {
+					return fmt.Errorf("loading prior snapshot: %w", err)
+				}
 				for kw, cur := range current {
 					row := ttMomentumRow{Keyword: kw, Slug: cur.Slug, Count: cur.Count, Engagement: cur.Engagement}
 					if p, ok := priorTopics[kw]; ok {

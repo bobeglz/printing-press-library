@@ -108,6 +108,9 @@ func newNovelDigestCmd(flags *rootFlags) *cobra.Command {
 				}
 				authors = append(authors, a)
 			}
+			if err := authorRows.Err(); err != nil {
+				return fmt.Errorf("iterating author rows: %w", err)
+			}
 
 			digest := ttDigest{
 				Window:      dur.String(),
