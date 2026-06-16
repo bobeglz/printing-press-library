@@ -1250,6 +1250,59 @@
       }
     },
     {
+      "name": "atlas-obscura",
+      "category": "travel",
+      "api": "Atlas Obscura",
+      "description": "Every Atlas Obscura search, plus a local database, road-trip corridor routing, and saved trips no other Atlas Obscura tool has.",
+      "search_terms": [
+        "atlas-obscura",
+        "Atlas Obscura",
+        "atlas-obscura-pp-cli",
+        "Every Atlas Obscura search, plus a local database, road-trip corridor routing, and saved trips no other Atlas Obscura tool has.",
+        "Road-trip corridor",
+        "route",
+        "Find Atlas Obscura wonders along the driving corridor between two cities, not just in one place.",
+        "Saved trips",
+        "trip",
+        "Accumulate places into named itineraries that persist across sessions.",
+        "Visited tracking",
+        "visited",
+        "Record which wonders you've seen, with optional date and note.",
+        "Unvisited gaps",
+        "gaps",
+        "Show good wonders near a point that you haven't visited yet, ranked by interestingness.",
+        "Walkable clusters",
+        "cluster",
+        "Group nearby wonders into spatially tight clusters that make a walkable half-day.",
+        "Daily surprise",
+        "surprise",
+        "Pick one high-interest wonder you haven't visited, seeded by date so it's stable per day.",
+        "Export trip",
+        "export",
+        "Serialize a saved trip to GPX, GeoJSON, or a markdown itinerary, fully offline."
+      ],
+      "path": "library/travel/atlas-obscura",
+      "printer": "dbryson",
+      "printer_name": "David Bryson",
+      "creator": {
+        "handle": "dbryson",
+        "name": "David Bryson"
+      },
+      "mcp": {
+        "binary": "atlas-obscura-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 3,
+        "public_tool_count": 3,
+        "auth_type": "none",
+        "env_vars": [],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "autotempest",
       "category": "commerce",
       "api": "AutoTempest",
