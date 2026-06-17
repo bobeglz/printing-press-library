@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "search-type-filter-and-snapshot-expansion",
+  "applied_at": "2026-06-17",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "summary": "Search routes a non-empty --type to a type-filtered FTS query, and expands snapshot records into their individual items — stamping each item with the snapshot's parent provenance (city, category, taken_at, and any other top-level field) under a \"_snapshot\" key.",
+  "reason": "A --type filter must narrow results rather than fall through to an unfiltered search, and items detached from a snapshot must stay attributable to when and where they were captured so agent callers can reason about freshness and geographic scope.",
+  "files": [
+    "internal/cli/search.go",
+    "internal/store/store.go"
+  ],
+  "validated_outcome": "internal/cli/search_test.go covers provenance preservation, no-clobber of an item's own fields, future-key carry, non-snapshot and unparseable pass-through, and the empty/zero-match query paths."
+}

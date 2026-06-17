@@ -212,12 +212,15 @@ func outputSearchResults(cmd *cobra.Command, flags *rootFlags, results []json.Ra
 }
 
 // expandSnapshotItems unwraps records that carry an "items" array (snapshot
-// rows written by commands like 'restaurants diff') into their individual
-// entities, keeping only items that match the query. Records without an
-// "items" array pass through unchanged. The query is matched as a
+// rows written by the restaurant/store snapshot commands) into their
+// individual entities, keeping only items that match the query. Records
+// without an "items" array pass through unchanged. The query is matched as a
 // case-insensitive substring against each item's string fields — FTS already
 // selected the snapshot at the record level, so this narrows it to the rows
-// the user actually asked for.
+// the user actually asked for. Each expanded item carries the snapshot's
+// parent provenance (city, category, taken_at, and any other top-level field
+// the snapshot recorded) under a "_snapshot" key, so callers can still tell
+// when and where the row was captured once it is detached from its parent.
 func expandSnapshotItems(results []json.RawMessage, query string) []json.RawMessage {
 	q := strings.ToLower(strings.TrimSpace(query))
 	out := make([]json.RawMessage, 0, len(results))
@@ -237,13 +240,50 @@ func expandSnapshotItems(results []json.RawMessage, query string) []json.RawMess
 			out = append(out, r)
 			continue
 		}
+		// Capture every top-level key except the items array itself; these are
+		// the snapshot's provenance fields that would otherwise be lost when the
+		// items are emitted as standalone rows.
+		prov := make(map[string]json.RawMessage, len(obj))
+		for k, v := range obj {
+			if k != "items" {
+				prov[k] = v
+			}
+		}
 		for _, it := range items {
 			if q == "" || itemMatchesQuery(it, q) {
-				out = append(out, it)
+				out = append(out, stampSnapshotProvenance(it, prov))
 			}
 		}
 	}
 	return out
+}
+
+// stampSnapshotProvenance attaches the snapshot's parent provenance to an
+// expanded item under a "_snapshot" key. It is non-destructive: items that are
+// not JSON objects, items that already carry a "_snapshot" key, and the
+// no-provenance case are all returned unchanged, so an item's own fields are
+// never overwritten.
+func stampSnapshotProvenance(item json.RawMessage, prov map[string]json.RawMessage) json.RawMessage {
+	if len(prov) == 0 {
+		return item
+	}
+	var obj map[string]json.RawMessage
+	if json.Unmarshal(item, &obj) != nil {
+		return item // not an object — can't annotate; keep verbatim
+	}
+	if _, exists := obj["_snapshot"]; exists {
+		return item // item already carries provenance — don't clobber it
+	}
+	provRaw, err := json.Marshal(prov)
+	if err != nil {
+		return item
+	}
+	obj["_snapshot"] = provRaw
+	stamped, err := json.Marshal(obj)
+	if err != nil {
+		return item
+	}
+	return stamped
 }
 
 // itemMatchesQuery reports whether lowerQuery appears as a substring in any
