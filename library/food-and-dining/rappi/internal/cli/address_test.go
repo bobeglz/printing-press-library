@@ -232,3 +232,26 @@ func TestAddressCommandConstructorsCompile(t *testing.T) {
 		t.Fatal("address command name mismatch")
 	}
 }
+
+func TestAddressShow_HandEditedPartialCoordsDoesNotPanic(t *testing.T) {
+	t.Setenv("HOME", t.TempDir())
+	// Simulate a hand-edited addresses.json: latitude set, longitude missing.
+	// saveAddressStore does not re-validate, so this partial state loads — and
+	// the text-mode show path used to dereference the nil longitude and panic.
+	lat := 19.36
+	s := emptyAddressStore()
+	s.upsertAddress(Address{Label: "casa", City: "ciudad-de-mexico", Latitude: &lat})
+	if err := saveAddressStore(s); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	out, err := runAddressCLI("address", "show", "casa") // text mode (no --agent)
+	if err != nil {
+		t.Fatalf("show: %v\n%s", err, out)
+	}
+	if !strings.Contains(out, "city: ciudad-de-mexico") {
+		t.Errorf("show output missing city: %s", out)
+	}
+	if strings.Contains(out, "lat:") || strings.Contains(out, "lng:") {
+		t.Errorf("partial coords should be omitted, not printed: %s", out)
+	}
+}

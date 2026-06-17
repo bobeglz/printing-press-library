@@ -139,7 +139,11 @@ func newAddressShowCmd(flags *rootFlags) *cobra.Command {
 			}
 			fmt.Fprintf(cmd.OutOrStdout(), "address %q:\n", addr.Label)
 			fmt.Fprintf(cmd.OutOrStdout(), "  city: %s\n", addr.City)
-			if addr.Latitude != nil {
+			// Guard on both pointers: the save-time validator enforces the
+			// both-or-neither invariant, but a hand-edited addresses.json with
+			// only one coordinate set still loads, and dereferencing the nil one
+			// here would panic in text mode.
+			if addr.Latitude != nil && addr.Longitude != nil {
 				fmt.Fprintf(cmd.OutOrStdout(), "  lat: %.12g\n", *addr.Latitude)
 				fmt.Fprintf(cmd.OutOrStdout(), "  lng: %.12g\n", *addr.Longitude)
 			}
