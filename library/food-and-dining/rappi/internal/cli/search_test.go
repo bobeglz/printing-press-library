@@ -124,6 +124,16 @@ func TestExpandSnapshotItems_UnparseableRecordPassesThrough(t *testing.T) {
 	}
 }
 
+func TestExpandSnapshotItems_NonArrayItemsPassesThrough(t *testing.T) {
+	// A record that has an "items" key whose value is not an array (malformed
+	// snapshot) must pass through unchanged rather than being dropped or mangled.
+	record := json.RawMessage(`{"city":"mexico-df","items":"not-an-array"}`)
+	out := expandSnapshotItems([]json.RawMessage{record}, "df")
+	if len(out) != 1 || string(out[0]) != string(record) {
+		t.Errorf("record with non-array items should pass through unchanged, got %v", out)
+	}
+}
+
 func TestExpandSnapshotItems_SnapshotWithoutOtherKeysAddsNoProvenance(t *testing.T) {
 	// A snapshot whose only top-level key is "items" has no provenance to add.
 	snapshot := json.RawMessage(`{"items":[{"name":"A"}]}`)

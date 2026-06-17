@@ -86,8 +86,10 @@ func saveAddressStore(s *addressStore) error {
 	}
 	// Write to a uniquely-named temp file in the same dir, then atomically
 	// rename it into place. A unique name (rather than a fixed "<path>.tmp")
-	// keeps two concurrent CLI invocations from racing over the same temp file
-	// and silently losing one writer's changes.
+	// stops two concurrent CLI invocations from racing over a shared temp
+	// file, so each writer's bytes land intact and its rename is independent.
+	// Distinct concurrent updates still resolve last-writer-wins — there is no
+	// lock spanning load-modify-save — which is acceptable for a single-user CLI.
 	tmp, err := os.CreateTemp(filepath.Dir(p), ".addresses-*.tmp")
 	if err != nil {
 		return fmt.Errorf("writing addresses: %w", err)
@@ -101,7 +103,10 @@ func saveAddressStore(s *addressStore) error {
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("writing addresses: %w", err)
 	}
-	return os.Rename(tmpPath, p)
+	if err := os.Rename(tmpPath, p); err != nil {
+		return fmt.Errorf("writing addresses: %w", err)
+	}
+	return nil
 }
 
 func emptyAddressStore() *addressStore {
