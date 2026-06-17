@@ -11,6 +11,27 @@ import (
 	"github.com/mvanhorn/printing-press-library/library/travel/airbnb/internal/store"
 )
 
+// persistWarn reports a best-effort persistence failure without ever polluting
+// the machine-mode event stream. In human mode it prints the familiar
+// "warning: <msg>" line; in machine mode it emits a single structured
+// persist_warning JSON event so consumers parsing stderr keep seeing exactly
+// one JSON object per line (the same stream-purity contract scrape_sync.go's
+// sync_* events honor). These helpers run on every default `sync` iteration via
+// runScrapeSync -> computeCheapest, so an unguarded plain-text warning here
+// would inject free-form text between the JSON sync events. id is optional
+// context (listing id or host name) and is omitted from the event when empty.
+func persistWarn(reason, id, msg string) {
+	if humanFriendly {
+		fmt.Fprintf(os.Stderr, "warning: %s\n", msg)
+		return
+	}
+	if id != "" {
+		fmt.Fprintf(os.Stderr, `{"event":"persist_warning","reason":"%s","id":"%s","message":"%s"}`+"\n", jsonEscape(reason), jsonEscape(id), jsonEscape(msg))
+		return
+	}
+	fmt.Fprintf(os.Stderr, `{"event":"persist_warning","reason":"%s","message":"%s"}`+"\n", jsonEscape(reason), jsonEscape(msg))
+}
+
 // openScrapeStore opens the local SQLite store for the best-effort
 // persistence side-effect of the scrape commands (search/get/cheapest/
 // compare/plan/watch). Returns (nil, nil) when the store cannot be opened
@@ -20,7 +41,7 @@ import (
 func openScrapeStore(ctx context.Context) *store.Store {
 	db, err := store.OpenWithContext(ctx, defaultDBPath("airbnb-pp-cli"))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "warning: store unavailable, scrape not persisted: %v\n", err)
+		persistWarn("store_unavailable", "", fmt.Sprintf("store unavailable, scrape not persisted: %v", err))
 		return nil
 	}
 	return db
@@ -41,7 +62,7 @@ func persistAirbnbListing(db *store.Store, l *airbnb.Listing) {
 		return
 	}
 	if err := db.UpsertAirbnbListing(data); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: persist listing %s failed: %v\n", l.ID, err)
+		persistWarn("persist_listing_failed", l.ID, fmt.Sprintf("persist listing %s failed: %v", l.ID, err))
 	}
 }
 
@@ -57,7 +78,7 @@ func persistHost(db *store.Store, h *hostextract.HostInfo) {
 		Brand: h.Brand,
 		Type:  h.Type,
 	}); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: persist host %q failed: %v\n", h.Name, err)
+		persistWarn("persist_host_failed", h.Name, fmt.Sprintf("persist host %q failed: %v", h.Name, err))
 	}
 }
 
@@ -84,7 +105,7 @@ func persistPriceSnapshot(db *store.Store, listingID, platform, checkin, checkou
 		snap.Tax = feeLookup(fees, "tax", "taxes", "occupancy_tax")
 	}
 	if err := db.InsertPriceSnapshot(snap); err != nil {
-		fmt.Fprintf(os.Stderr, "warning: persist snapshot for %s failed: %v\n", listingID, err)
+		persistWarn("persist_snapshot_failed", listingID, fmt.Sprintf("persist snapshot for %s failed: %v", listingID, err))
 	}
 }
 

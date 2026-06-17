@@ -2,6 +2,7 @@ package cli
 
 import (
 	"encoding/json"
+	"path/filepath"
 	"testing"
 
 	"github.com/mvanhorn/printing-press-library/library/travel/airbnb/internal/source/airbnb"
@@ -46,7 +47,7 @@ func TestClassifyWatchPrice(t *testing.T) {
 // watchlist dates winning. An empty store yields zero targets so the caller
 // reports honestly instead of calling any API.
 func TestCollectScrapeTargets_FromWatchlistAndListings(t *testing.T) {
-	s, err := store.Open(t.TempDir() + "/data.db")
+	s, err := store.Open(filepath.Join(t.TempDir(), "data.db"))
 	if err != nil {
 		t.Fatalf("open store: %v", err)
 	}
