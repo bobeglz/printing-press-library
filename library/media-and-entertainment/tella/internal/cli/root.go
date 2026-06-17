@@ -180,6 +180,7 @@ See README.md or the bundled SKILL.md for recipes.`,
 		return nil
 	}
 	rootCmd.AddCommand(newPlaylistsCmd(flags))
+	rootCmd.AddCommand(newSourcesCmd(flags))
 	rootCmd.AddCommand(newVideosCmd(flags))
 	rootCmd.AddCommand(newWebhooksCmd(flags))
 	rootCmd.AddCommand(newDoctorCmd(flags))
