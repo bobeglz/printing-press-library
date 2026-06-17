@@ -1,0 +1,15 @@
+{
+  "schema_version": 2,
+  "id": "address-docs-and-feature-index",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    ".printing-press.json",
+    "SKILL.md",
+    "README.md"
+  ],
+  "summary": "Documented the address feature and added it to novel_features.",
+  "reason": "Printing Press skill and README surfaces must stay in lockstep with actual Cobra commands and behavior changes.",
+  "validated_outcome": "Full verification includes go test, go vet, build, and command smoke flows."
+}

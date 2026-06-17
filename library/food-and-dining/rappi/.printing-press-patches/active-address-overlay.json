@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "active-address-overlay",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/address_overlay.go",
+    "internal/cli/address_overlay_test.go",
+    "internal/cli/root.go",
+    "internal/cli/restaurants_diff.go"
+  ],
+  "summary": "Applied the active address as default city/lat/lng context in PersistentPreRunE.",
+  "reason": "Flagless geo commands should answer for the active delivery address while explicit flags and profiles keep precedence.",
+  "validated_outcome": "Decision-matrix tests cover no-op, explicit skip, profile skip, city-only, coords, corrupt store, dangling active, dry-run, and diff attribution."
+}

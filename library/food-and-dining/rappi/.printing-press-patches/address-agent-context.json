@@ -1,0 +1,14 @@
+{
+  "schema_version": 2,
+  "id": "address-agent-context",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/agent_context.go",
+    "internal/cli/address_store.go"
+  ],
+  "summary": "Surfaced available_addresses and active_address in the agent-context introspection JSON.",
+  "reason": "Agents priming on agent-context must know an active address exists; otherwise they pass explicit --city flags and silently defeat the overlay.",
+  "validated_outcome": "Covered by TestBuildAgentContext_IncludesAddresses and agent-context smoke output."
+}

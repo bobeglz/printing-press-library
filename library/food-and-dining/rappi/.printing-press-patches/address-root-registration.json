@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "id": "address-root-registration",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/root.go"
+  ],
+  "summary": "Registered the local address command group in the root Cobra tree.",
+  "reason": "The command group is hand-written and MCP-hidden, so it needs one root registration line outside the generator output.",
+  "validated_outcome": "CLI tests execute address save/show/use/current/list/delete through the root command."
+}

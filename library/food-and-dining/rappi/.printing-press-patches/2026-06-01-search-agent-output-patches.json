@@ -1,0 +1,18 @@
+{
+  "schema_version": 2,
+  "id": "2026-06-01-search-agent-output-patches",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/search.go",
+    "internal/cli/helpers.go",
+    "internal/store/store.go",
+    "SKILL.md",
+    ".printing-press.json",
+    "rappi-pp-cli"
+  ],
+  "summary": "Cataloged the 2026-06-01 hand patches from commit 9fd78b2 for search and agent-output behavior.",
+  "reason": "These local fixes predate this manifest and would be easy to lose on reprint unless indexed here.",
+  "validated_outcome": "Enumerated from git show --stat 9fd78b2."
+}

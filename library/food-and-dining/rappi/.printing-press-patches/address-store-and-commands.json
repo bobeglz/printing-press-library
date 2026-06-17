@@ -1,0 +1,16 @@
+{
+  "schema_version": 2,
+  "id": "address-store-and-commands",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/address_store.go",
+    "internal/cli/address_store_test.go",
+    "internal/cli/address.go",
+    "internal/cli/address_test.go"
+  ],
+  "summary": "Added a typed local store and Cobra address commands for saved delivery addresses.",
+  "reason": "Rappi usage needs a reusable delivery location with nullable coordinates and an active pointer, which generated profiles cannot model safely.",
+  "validated_outcome": "Covered by address store and command tests plus isolated-HOME smoke flows."
+}

@@ -1,0 +1,10 @@
+{
+  "schema_version": 2,
+  "deferred_to_upstream": [
+    {
+      "id": "active-location-context",
+      "summary": "Generalize an active named location/context mechanism for geo-keyed pp CLIs",
+      "reason": "Feature is generator-shaped; belongs in the printing-press machine"
+    }
+  ]
+}

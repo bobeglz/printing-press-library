@@ -6,6 +6,8 @@ Pulls your workspace into a local SQLite store with FTS5 search and runs compoun
 
 Created by [@mvanhorn](https://github.com/mvanhorn) (Matt Van Horn).
 
+Contributors: [@tmchow](https://github.com/tmchow) (Trevin Chow).
+
 ## Install
 
 The recommended path installs both the `linear-pp-cli` binary and the `pp-linear` agent skill (Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot, and other agents supported by the upstream [`skills`](https://github.com/vercel-labs/skills) CLI) in one shot:
@@ -50,6 +52,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install linear --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -58,16 +68,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-linear --for
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-linear --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install linear --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install linear --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -162,13 +174,18 @@ These capabilities aren't available in any other tool for this API.
   ```bash
   linear-pp-cli stale --days 30 --team ENG --json
   ```
-- **`similar`** — Find issues that look like duplicates of a query string using offline FTS5 fuzzy matching.
+- **`issues search` / `similar`** — Find issues that look like duplicates of a query string using offline FTS5 fuzzy matching.
 
   _Reach for this during triage when you suspect an incoming bug duplicates an existing issue._
 
   ```bash
+  linear-pp-cli issues search "login redirect bug" --limit 5 --agent
+  linear-pp-cli issues search "pipeline follow-up" --team SYMPH --limit 10 --agent
   linear-pp-cli similar "login redirect bug" --limit 5 --json
+  linear-pp-cli similar "pipeline follow-up" --team SYMPH --limit 10 --agent
   ```
+
+  Prefer `issues search` when checking for existing tickets before creating or updating follow-up work. Add `--team <key-name-or-uuid>` when a common project name or label appears across teams and the duplicate check must stay inside the target team's queue.
 
 ### Cross-entity rollups
 - **`projects burndown`** — Project a project's landing date by linear-regressing remaining estimate against the team's measured velocity.
@@ -237,6 +254,33 @@ These capabilities aren't available in any other tool for this API.
 
   ```bash
   linear-pp-cli issues create --title "Test ticket" --team ENG --trust-mode strict
+  ```
+- **Team-safe issue labels** — Discover labels that are valid for the target Linear team, including global labels, before creating or editing issues.
+
+  _Reach for this before passing label UUIDs to `issues create` or `issues edit`; Linear rejects labels owned by another team, and the CLI now preflights label ownership before mutating._
+
+  ```bash
+  linear-pp-cli labels list --team ENG --agent --select id,name,global,team.key
+  linear-pp-cli issues create --title "Title" --team ENG --label <global-or-eng-label-id> --agent
+  ```
+- **Shell-safe Linear writes with media** — Create and update issue descriptions, comments, and Linear docs without putting Markdown bodies on the shell command line.
+
+  _Reach for this whenever a body contains newlines, quotes, backticks, `$()` expansions, shell commands, images, logs, or agent-generated Markdown._
+
+  ```bash
+  linear-pp-cli issues create --title "Title" --team ENG --description-file /tmp/body.md --media /tmp/screenshot.png --agent
+  linear-pp-cli issues edit ENG-123 --description-file /tmp/body.md --agent
+  linear-pp-cli comments add --issue ENG-123 --body-file /tmp/comment.md --media /tmp/screenshot.png --agent
+  linear-pp-cli documents create --title "Runbook" --issue ENG-123 --content-file /tmp/runbook.md --agent
+  linear-pp-cli documents create --title "Team runbook" --team ENG --content-file /tmp/runbook.md --agent
+  ```
+
+  `documents create` requires exactly one parent (`--issue`, `--project`, `--team`, `--initiative`, `--cycle`, `--release`, or `--folder`); `--team` accepts a key such as `ENG` or a UUID.
+- **Current issue reads and comments** — Read full issue bodies and discussion from live Linear when freshness matters.
+
+  ```bash
+  linear-pp-cli issues ENG-123 --agent --data-source live --select identifier,title,description,state.name,url
+  linear-pp-cli comments list --issue ENG-123 --agent
   ```
 
 ## Usage
@@ -311,6 +355,12 @@ Manage integrations
 Manage issue-priority-values
 
 - **`linear-pp-cli issue-priority-values`** - Get a single issuepriorityvalue
+
+### labels
+
+List Linear issue labels with team ownership
+
+- **`linear-pp-cli labels list --team ENG`** - List global labels plus labels owned by the target team
 
 ### organizations
 
@@ -443,6 +493,16 @@ This CLI is designed for AI agent consumption:
 
 Exit codes: `0` success, `2` usage error, `3` not found, `4` auth error, `5` API error, `7` rate limited, `10` config error.
 
+Agent recipes:
+
+```bash
+# Full current issue body; compact output strips descriptions unless selected
+linear-pp-cli issues ENG-123 --agent --data-source live --select identifier,title,description,state.name,url
+
+# Safe multiline writes; body files preserve shell snippets literally
+linear-pp-cli comments add --issue ENG-123 --body-file /tmp/comment.md --agent
+```
+
 ## Health Check
 
 ```bash
@@ -470,8 +530,12 @@ Read commands fall into three categories with different data-source semantics. T
 | Category | Commands | Default | Override |
 | --- | --- | --- | --- |
 | **Live-first with local fallback** | `attachments`, `projects get`, `teams`, `initiatives get`, `issues`, `issues list` (the v4 refactor) | `--data-source auto`: live API → write-through → fall back to local on network error | `--data-source live` (no fallback), `--data-source local` (no API) |
-| **Snapshot-computational** | `today`, `bottleneck`, `blocking`, `similar`, `velocity`, `slipped`, `cycles compare`, `projects burndown`, `initiatives health`, `milestones at-risk` | Local store only — no live equivalent exists. **Must `sync` first.** | None (flag ignored) |
-| **Mutations** | `issues create`, `pp-cleanup` | Always live; on success, the HTTP cache is invalidated AND the entity is written back to the local store | n/a |
+| **Snapshot-computational** | `today`, `bottleneck`, `blocking`, `issues search`, `similar`, `velocity`, `slipped`, `cycles compare`, `projects burndown`, `initiatives health`, `milestones at-risk` | Local store only — no live equivalent exists. **Must `sync` first.** | None (flag ignored) |
+| **Label discovery** | `labels list --team ENG` | `--data-source auto`: reads live by default; `--data-source local` reads the synced `issue_labels` table | `--data-source live`, `--data-source local` |
+| **Live collaboration reads** | `comments list`, `documents`, `documents list` | Always live; comments and working-session docs are collaboration surfaces where stale local state is misleading | n/a |
+| **Mutations** | `issues create`, `issues edit`, `comments add`, `comments edit`, `documents create`, `documents edit`, `pp-cleanup` | Always live; on success, the HTTP cache is invalidated AND issue mutations are written back to the local store | n/a |
+
+Promoted Linear GraphQL read commands such as `teams` and `projects get` use POST `/graphql` internally. They should not be reimplemented with shell-level GET calls; Linear rejects GET `/graphql` with CSRF/preflight errors.
 
 **`--max-age` (default 30 minutes):**
 

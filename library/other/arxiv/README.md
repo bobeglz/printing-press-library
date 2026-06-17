@@ -3,6 +3,7 @@
 Public Atom API for searching and fetching arXiv e-print metadata.
 
 Created by [@hnshah](https://github.com/hnshah) (Hiten Shah).
+Contributors: [@sdhilip200](https://github.com/sdhilip200) (Dhilip Subramanian).
 
 ## Install
 
@@ -48,6 +49,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install arxiv --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -56,16 +65,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-arxiv --forc
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-arxiv --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install arxiv --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install arxiv --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -174,7 +185,7 @@ This CLI is designed for AI agent consumption:
 - **Filterable** - `--select entries.id,entries.title` returns only fields you need
 - **Previewable** - `--dry-run` shows the request without sending
 - **Read-only by default** - this CLI does not create, update, delete, publish, send, or mutate remote resources
-- **Live-first** - arXiv search is most useful against the live API; generic sync/local-store commands are present from the scaffold but `/api/query` requires caller-supplied search or ID parameters
+- **Live-first** - arXiv search is most useful against the live API; sync/local-store commands require an explicit scope, such as `arxiv-pp-cli sync --search-query 'cat:cs.AI' --max-pages 1` or `arxiv-pp-cli sync --id-list 1706.03762 --max-pages 1`
 - **Agent-safe by default** - no colors or formatting unless `--human-friendly` is set
 
 Exit codes: `0` success, `2` usage error, `3` not found, `5` API error, `7` rate limited, `10` config error.

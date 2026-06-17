@@ -6,6 +6,7 @@ package cli
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/client"
+	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/config"
 	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/store"
 	"github.com/spf13/cobra"
@@ -63,6 +65,257 @@ func looksLikeDoctorInterstitial(body []byte) string {
 	return ""
 }
 
+func authLane(status, source, hint string) map[string]any {
+	lane := map[string]any{"status": status}
+	if source != "" {
+		lane["source"] = source
+	}
+	if hint != "" {
+		lane["hint"] = hint
+	}
+	return lane
+}
+
+func probeAuthLane(ctx context.Context, c *client.Client, header, source, path, missingHint string) map[string]any {
+	if header == "" {
+		return authLane("missing", source, missingHint)
+	}
+	headers := map[string]string{
+		"Authorization": header,
+		"User-Agent":    "x-twitter-pp-cli",
+	}
+	body, err := c.GetWithHeaders(ctx, path, nil, headers)
+	if err == nil {
+		lane := authLane("ok", source, "")
+		if path == "/2/users/me" {
+			if user := userSummaryFromMeProbe(body); len(user) > 0 {
+				lane["probe"] = "/2/users/me ok"
+				lane["user"] = user
+			}
+		}
+		return lane
+	}
+	var apiErr *client.APIError
+	if errors.As(err, &apiErr) {
+		body := apiErr.Body
+		switch {
+		case apiErr.StatusCode == 401:
+			lane := authLane("invalid", source, "token was rejected; refresh or replace this credential")
+			lane["http_status"] = apiErr.StatusCode
+			return lane
+		case apiErr.StatusCode == 403 && xAppOnlyUnsupportedAuth(body):
+			lane := authLane("invalid", source, "this credential appears to be app-only; set/import a real OAuth2 user-context token in X_OAUTH2_USER_TOKEN")
+			lane["http_status"] = apiErr.StatusCode
+			lane["classification"] = "app_only_token_used_for_user_context"
+			return lane
+		case apiErr.StatusCode == 403:
+			lane := authLane("invalid", source, "credential reached X but lacks permission for this probe")
+			lane["http_status"] = apiErr.StatusCode
+			return lane
+		default:
+			lane := authLane("unknown", source, "probe reached X but returned a non-auth HTTP status")
+			lane["http_status"] = apiErr.StatusCode
+			return lane
+		}
+	}
+	lane := authLane("unknown", source, "probe could not complete")
+	lane["error"] = err.Error()
+	return lane
+}
+
+func cookieAuthLane() map[string]any {
+	cookies, err := client.LoadCookieAuth()
+	if err != nil {
+		return authLane("missing", "cookies.json", "capture X Articles cookies with `x-twitter-pp-cli auth login --chrome`; this does not configure v2 API OAuth2 user-context auth")
+	}
+	lane := authLane("ok", "cookies.json", "")
+	if userID := cookies.ArticleUserID(); userID != "" {
+		lane["user_id_present"] = true
+		lane["user_id"] = userID
+	}
+	lane["write_capability"] = "ok: Articles create/update/title/cover/delete writes use browser cookies; X_OAUTH2_USER_TOKEN is only needed for v2 API user-context writes"
+	lane["capabilities"] = []string{"articles.list", "articles.create-draft", "articles.update-content", "articles.update-title", "articles.update-cover-media", "articles.delete", "articles.publish", "articles.unpublish", "articles.upload-media"}
+	return lane
+}
+
+const xAppOnlyProbePath = "/2/users/2244994945"
+
+func buildAuthLaneReport(ctx context.Context, cfg *config.Config, c *client.Client) map[string]any {
+	userSource := cfg.UserContextAuthSource()
+	if userSource == "" {
+		userSource = "X_OAUTH2_USER_TOKEN/access_token"
+	}
+
+	type laneResult struct {
+		key  string
+		lane map[string]any
+	}
+	results := make(chan laneResult, 2)
+	go func() {
+		results <- laneResult{
+			key: "app_only_api",
+			lane: probeAuthLane(
+				ctx,
+				c,
+				cfg.AppOnlyAuthHeader(),
+				"X_BEARER_TOKEN",
+				xAppOnlyProbePath,
+				"set X_BEARER_TOKEN for app-only public API reads",
+			),
+		}
+	}()
+	go func() {
+		results <- laneResult{
+			key: "oauth2_user_context",
+			lane: probeAuthLane(
+				ctx,
+				c,
+				cfg.UserContextAuthHeader(),
+				userSource,
+				"/2/users/me",
+				"set X_OAUTH2_USER_TOKEN to a real OAuth2 user-context token for /2/users/me, personal reads, writes, bookmarks, and user-context analytics",
+			),
+		}
+	}()
+
+	lanes := map[string]any{"x_articles_cookie": cookieAuthLane()}
+	for range 2 {
+		result := <-results
+		lanes[result.key] = result.lane
+	}
+	attachUserContextTokenMetadata(lanes, cfg)
+	return lanes
+}
+
+func userSummaryFromMeProbe(body []byte) map[string]any {
+	var envelope struct {
+		Data struct {
+			ID       string `json:"id"`
+			Username string `json:"username"`
+			Name     string `json:"name"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &envelope); err != nil {
+		return nil
+	}
+	user := map[string]any{}
+	if envelope.Data.ID != "" {
+		user["id"] = envelope.Data.ID
+	}
+	if envelope.Data.Username != "" {
+		user["username"] = envelope.Data.Username
+		user["handle"] = "@" + strings.TrimPrefix(envelope.Data.Username, "@")
+	}
+	if envelope.Data.Name != "" {
+		user["name"] = envelope.Data.Name
+	}
+	return user
+}
+
+func attachUserContextTokenMetadata(lanes map[string]any, cfg *config.Config) {
+	if cfg == nil {
+		return
+	}
+	lane, _ := lanes["oauth2_user_context"].(map[string]any)
+	if lane == nil {
+		return
+	}
+	if !cfg.TokenExpiry.IsZero() {
+		lane["expires_at"] = cfg.TokenExpiry.UTC().Format(time.RFC3339)
+	}
+	if cfg.ClientID != "" {
+		lane["client_id_present"] = true
+	}
+	if cfg.ClientSecret != "" {
+		lane["client_secret_present"] = true
+	}
+	if cfg.RefreshToken != "" {
+		lane["refresh_token_present"] = true
+		if cfg.ClientID == "" {
+			lane["refresh_client_id_present"] = false
+			hint, _ := lane["hint"].(string)
+			refreshHint := "refresh token is stored but OAuth2 client_id is missing; re-import with --client-id or run auth oauth2-login --client-id <id>"
+			if strings.TrimSpace(hint) == "" {
+				lane["hint"] = refreshHint
+			} else if !strings.Contains(hint, "client_id") {
+				lane["hint"] = hint + "; " + refreshHint
+			}
+		}
+	} else if cfg.AccessToken != "" || cfg.XOauth2UserToken != "" || cfg.AuthHeaderVal != "" {
+		lane["refresh_token_present"] = false
+	}
+	if len(cfg.Scopes) > 0 {
+		lane["scopes"] = cfg.Scopes
+		if missing := missingScopesForWorkflows(cfg.Scopes); len(missing) > 0 {
+			lane["missing_for"] = missing
+		}
+	} else if cfg.AccessToken != "" || cfg.XOauth2UserToken != "" || cfg.AuthHeaderVal != "" {
+		lane["scopes_known"] = false
+		hint, _ := lane["hint"].(string)
+		if strings.TrimSpace(hint) == "" {
+			lane["hint"] = "scope metadata is not stored; import OAuth2 with --scopes so agents can preflight workflows"
+		}
+	}
+}
+
+func missingScopesForWorkflows(scopes []string) map[string][]string {
+	have := map[string]bool{}
+	for _, scope := range scopes {
+		scope = strings.TrimSpace(scope)
+		if scope != "" {
+			have[scope] = true
+		}
+	}
+	required := map[string][]string{
+		"identity":        {"users.read", "tweet.read"},
+		"personal_reads":  {"users.read", "tweet.read"},
+		"bookmarks":       {"bookmark.read", "tweet.read", "users.read"},
+		"likes":           {"like.read", "tweet.read", "users.read"},
+		"follows":         {"follows.read", "users.read"},
+		"public_writes":   {"tweet.write", "tweet.read", "users.read"},
+		"dm":              {"dm.read", "dm.write", "users.read"},
+		"offline_refresh": {"offline.access"},
+	}
+	missing := map[string][]string{}
+	for workflow, needed := range required {
+		var absent []string
+		for _, scope := range needed {
+			if !have[scope] {
+				absent = append(absent, scope)
+			}
+		}
+		if len(absent) > 0 {
+			missing[workflow] = absent
+		}
+	}
+	return missing
+}
+
+func laneStatus(lanes map[string]any, key string) string {
+	lane, _ := lanes[key].(map[string]any)
+	status, _ := lane["status"].(string)
+	if status == "" {
+		return "unknown"
+	}
+	return status
+}
+
+func credentialSummary(lanes map[string]any) string {
+	human := func(status string) string {
+		switch status {
+		case "missing":
+			return "not set"
+		default:
+			return status
+		}
+	}
+	return fmt.Sprintf("app-only API %s; OAuth2 user-context %s; X Articles cookie %s",
+		human(laneStatus(lanes, "app_only_api")),
+		human(laneStatus(lanes, "oauth2_user_context")),
+		human(laneStatus(lanes, "x_articles_cookie")),
+	)
+}
+
 func newDoctorCmd(flags *rootFlags) *cobra.Command {
 	var failOn string
 	cmd := &cobra.Command{
@@ -73,6 +326,11 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
   x-twitter-pp-cli doctor --fail-on warn`,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			report := map[string]any{}
+			selectedProfile := flags.profileName
+			if selectedProfile == "" {
+				selectedProfile = "default"
+			}
+			report["selected_profile"] = selectedProfile
 
 			// Check config
 			cfg, err := config.Load(flags.configPath)
@@ -82,15 +340,28 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				report["config"] = "ok"
 				report["config_path"] = cfg.Path
 				report["base_url"] = cfg.BaseURL
+				// agentcookie integration is soft: if the agentcookie daemon manages
+				// this CLI's config, it writes a marker file alongside the config and
+				// AuthSource is upgraded to "agentcookie" in config.Load. Surface the
+				// state explicitly so users can tell whether the bus is wired up.
+				if cfg.AuthSource == "agentcookie" {
+					report["agentcookie"] = "detected (managing credentials)"
+				} else {
+					report["agentcookie"] = "not detected (optional)"
+				}
 			}
 
 			// Check auth
+			authConfigured := false
 			if cfg != nil {
 				header := cfg.AuthHeader()
 				if header == "" {
 					report["auth"] = "not configured"
-					report["auth_hint"] = "export X_OAUTH2_USER_TOKEN=<your-key>"
+					report["auth_hint"] = "export X_BEARER_TOKEN=<your-key>"
+					report["auth_key_url"] = "https://console.x.com/"
+					report["auth_instructions"] = "Bearer Token (required) is on your app Keys and Tokens page at console.x.com. Optional X_OAUTH2_USER_TOKEN unlocks v2 writes and personal reads. X Articles authoring uses browser cookies captured via auth login --chrome."
 				} else {
+					authConfigured = true
 					report["auth"] = "configured"
 					report["auth_source"] = cfg.AuthSource
 				}
@@ -103,20 +374,39 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 			authEnvOptionalNames := []string{}
 			// Validation rejects multi-OR-group specs upstream, so the single optional-satisfied state is sufficient at runtime.
 			authEnvOptionalSatisfied := false
-			if os.Getenv("X_OAUTH2_USER_TOKEN") != "" {
+			if os.Getenv("X_BEARER_TOKEN") != "" {
+				authEnvSet = append(authEnvSet, "X_BEARER_TOKEN")
+			} else if authConfigured {
+				authSource, _ := report["auth_source"].(string)
+				if authSource == "" {
+					authSource = "config"
+				}
+				authEnvInfo = append(authEnvInfo, "credentials available from "+authSource)
+			} else {
+				authEnvRequiredMissing = append(authEnvRequiredMissing, "X_BEARER_TOKEN")
+			}
+			if strings.Contains("Optional OAuth2 user-context token. Unlocks v2 writes (post, like, repost, bookmark, follow, DM) and personal reads (me, mentions, home timeline, bookmarks). Sent as Authorization Bearer; obtain from an OAuth2 authorization-code + PKCE flow and set/import explicitly. auth login --chrome is cookie-only for X Articles.", " OR ") {
+				authEnvOptionalNames = append(authEnvOptionalNames, "X_OAUTH2_USER_TOKEN")
+				if os.Getenv("X_OAUTH2_USER_TOKEN") != "" {
+					authEnvSet = append(authEnvSet, "X_OAUTH2_USER_TOKEN")
+					authEnvOptionalSatisfied = true
+				}
+			} else if os.Getenv("X_OAUTH2_USER_TOKEN") != "" {
 				authEnvSet = append(authEnvSet, "X_OAUTH2_USER_TOKEN")
 			} else {
-				authEnvRequiredMissing = append(authEnvRequiredMissing, "X_OAUTH2_USER_TOKEN")
+				authEnvInfo = append(authEnvInfo, "X_OAUTH2_USER_TOKEN optional")
 			}
 			switch {
 			case len(authEnvRequiredMissing) > 0:
 				report["env_vars"] = "ERROR missing required: " + strings.Join(authEnvRequiredMissing, ", ")
 			case len(authEnvOptionalNames) > 1 && !authEnvOptionalSatisfied:
 				report["env_vars"] = "INFO set one of: " + strings.Join(authEnvOptionalNames, " or ")
+			case len(authEnvInfo) > 0 && authConfigured:
+				report["env_vars"] = "OK " + strings.Join(authEnvInfo, "; ")
 			case len(authEnvInfo) > 0:
 				report["env_vars"] = "INFO " + strings.Join(authEnvInfo, "; ")
 			default:
-				report["env_vars"] = fmt.Sprintf("OK %d/%d available", len(authEnvSet), 1)
+				report["env_vars"] = fmt.Sprintf("OK %d/%d available", len(authEnvSet), 2)
 			}
 
 			// Check API connectivity and validate credentials.
@@ -134,8 +424,13 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				if clientErr != nil {
 					report["api"] = fmt.Sprintf("client init error: %s", clientErr)
 				} else {
+					c.NoCache = true
 					// Step 1: Basic reachability via the configured transport.
-					reachBody, reachErr := c.Get("/", nil)
+					healthPath := "/2/users/me"
+					if !strings.HasPrefix(healthPath, "/") {
+						healthPath = "/" + healthPath
+					}
+					reachBody, reachErr := c.Get(cmd.Context(), healthPath, nil)
 					var reachAPIErr *client.APIError
 					switch {
 					case reachErr == nil:
@@ -165,40 +460,16 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 						report["api"] = fmt.Sprintf("unreachable: %s", reachErr)
 					}
 
-					// Step 2: Validate credentials with an authenticated probe.
-					authHeader := cfg.AuthHeader()
-					if authHeader == "" {
-						// No auth configured — skip credential validation
-					} else if reachErr != nil && !errors.As(reachErr, &reachAPIErr) {
+					// Step 2: Validate each X auth lane separately. X's v2 API
+					// distinguishes app-only bearer auth from OAuth2 user-context
+					// auth, and X Articles uses browser cookies. A single
+					// "credentials valid" verdict is misleading here.
+					if reachErr != nil && !errors.As(reachErr, &reachAPIErr) {
 						report["credentials"] = "skipped (API unreachable)"
 					} else {
-						verifyPath := "/"
-						authParams := map[string]string{}
-						authHeaders := map[string]string{}
-						authHeaders["Authorization"] = authHeader
-						_, authErr := c.GetWithHeaders(verifyPath, authParams, authHeaders)
-						var authAPIErr *client.APIError
-						switch {
-						case authErr == nil:
-							report["credentials"] = "valid"
-						case errors.As(authErr, &authAPIErr):
-							switch {
-							case authAPIErr.StatusCode == 401 || authAPIErr.StatusCode == 403:
-								// The probe hit the bare base URL because no auth.verify_path
-								// is configured in the spec. Many APIs return 401/403 from a
-								// bare versioned root regardless of token validity (the path
-								// isn't routed but the gateway still demands credentials).
-								// Don't claim invalid without certainty — set verify_path to
-								// a known-good authenticated GET (e.g. /me, /v1/account, /user)
-								// for a definitive verdict.
-								report["credentials"] = fmt.Sprintf("inconclusive (HTTP %d from base URL — set auth.verify_path in spec for a definitive probe)", authAPIErr.StatusCode)
-							default:
-								// Non-auth HTTP error (404, 500, etc.) — don't blame credentials
-								report["credentials"] = fmt.Sprintf("ok (HTTP %d from %s, but auth was accepted)", authAPIErr.StatusCode, verifyPath)
-							}
-						default:
-							report["credentials"] = fmt.Sprintf("error: %s", authErr)
-						}
+						authLanes := buildAuthLaneReport(cmd.Context(), cfg, c)
+						report["auth_lanes"] = authLanes
+						report["credentials"] = credentialSummary(authLanes)
 					}
 				}
 			} else if cfg != nil && cfg.BaseURL == "" {
@@ -209,6 +480,21 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 			// and a fresh/stale/unknown verdict so agents can introspect
 			// whether to trust the cached data before issuing queries.
 			report["cache"] = collectCacheReport(cmd.Context(), "")
+
+			// Verify mode state. Surfaced so an operator who unintentionally
+			// inherits PRINTING_PRESS_VERIFY=1 (parent shell, CI runner, container
+			// image) detects the foot-gun without inspecting a response body.
+			// Pairs with the synthetic envelope's verify_noop / reason literals
+			// as a second diagnosis anchor.
+			if cliutil.IsVerifyEnv() {
+				if cliutil.IsVerifyLiveHTTPEnv() {
+					report["verify_mode"] = "INFO ACTIVE — live HTTP opt-in (mutating verbs dial out)"
+				} else {
+					report["verify_mode"] = "INFO ACTIVE — mutating HTTP verbs short-circuit (PRINTING_PRESS_VERIFY=1; no network calls for DELETE/POST/PUT/PATCH)"
+				}
+			} else {
+				report["verify_mode"] = "normal operation"
+			}
 
 			report["version"] = version
 
@@ -225,6 +511,7 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				{"config", "Config"},
 				{"auth", "Auth"},
 				{"env_vars", "Env Vars"},
+				{"verify_mode", "Verify Mode"},
 				{"api", "API"},
 				{"credentials", "Credentials"},
 			}
@@ -243,12 +530,13 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				case strings.HasPrefix(s, "optional"):
 					// Optional-auth CLI with no key set — informational, not a failure.
 					indicator = yellow("INFO")
-				case strings.HasPrefix(s, "inconclusive"):
-					// The credential probe could not produce a definitive verdict
-					// (typically because the bare base URL returns 401/403 even for
-					// valid tokens). Surface as WARN, not FAIL — the user's actual
-					// commands will reveal a real auth failure if one exists.
+				case strings.Contains(s, "scope-limited"):
 					indicator = yellow("WARN")
+				case strings.Contains(s, "not verified"):
+					// "present, not verified" — credentials are loaded but no
+					// probe ran. Informational, not a warning; a clean config
+					// shouldn't render yellow WARN in CI dashboards.
+					indicator = yellow("INFO")
 				case strings.Contains(s, "error") || strings.Contains(s, "not configured") || strings.Contains(s, "unreachable") || strings.Contains(s, "invalid") || strings.Contains(s, "missing"):
 					indicator = red("FAIL")
 				case s == "not required":
@@ -259,6 +547,11 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 				}
 				fmt.Fprintf(w, "  %s %s: %s\n", indicator, ck.label, s)
 			}
+			if lanesAny, ok := report["auth_lanes"]; ok {
+				if lanes, ok := lanesAny.(map[string]any); ok {
+					renderAuthLaneReport(w, lanes)
+				}
+			}
 			// Print info keys without status indicator
 			for _, key := range []string{"config_path", "base_url", "auth_source", "version"} {
 				if v, ok := report[key]; ok {
@@ -268,6 +561,12 @@ func newDoctorCmd(flags *rootFlags) *cobra.Command {
 			// Print auth setup hints (indented under Auth line)
 			if hint, ok := report["auth_hint"]; ok {
 				fmt.Fprintf(w, "  hint: %v\n", hint)
+			}
+			if keyURL, ok := report["auth_key_url"]; ok {
+				fmt.Fprintf(w, "  Get a key at: %v\n", keyURL)
+			}
+			if instructions, ok := report["auth_instructions"]; ok {
+				fmt.Fprintf(w, "  %v\n", instructions)
 			}
 			// Cache section: render after the primary health block so it
 			// sits next to version info, mirroring the JSON report layout.
@@ -464,5 +763,43 @@ func renderCacheReport(w io.Writer, rep map[string]any) {
 	}
 	if hint, ok := rep["hint"]; ok {
 		fmt.Fprintf(w, "    hint: %v\n", hint)
+	}
+}
+
+func renderAuthLaneReport(w io.Writer, lanes map[string]any) {
+	fmt.Fprintf(w, "  Auth Lanes:\n")
+	for _, entry := range []struct {
+		key   string
+		label string
+	}{
+		{"app_only_api", "app-only API auth"},
+		{"oauth2_user_context", "OAuth2 user-context auth"},
+		{"x_articles_cookie", "X Articles cookie auth"},
+	} {
+		lane, _ := lanes[entry.key].(map[string]any)
+		status, _ := lane["status"].(string)
+		if status == "" {
+			status = "unknown"
+		}
+		indicator := green("OK")
+		switch status {
+		case "missing", "unknown":
+			indicator = yellow("INFO")
+		case "invalid":
+			indicator = red("FAIL")
+		}
+		fmt.Fprintf(w, "    %s %s: %s\n", indicator, entry.label, status)
+		if source, _ := lane["source"].(string); source != "" {
+			fmt.Fprintf(w, "      source: %s\n", source)
+		}
+		if hint, _ := lane["hint"].(string); hint != "" {
+			fmt.Fprintf(w, "      hint: %s\n", hint)
+		}
+		if capability, _ := lane["write_capability"].(string); capability != "" {
+			fmt.Fprintf(w, "      write_capability: %s\n", capability)
+		}
+		if userID, _ := lane["user_id"].(string); userID != "" {
+			fmt.Fprintf(w, "      user_id: %s\n", userID)
+		}
 	}
 }

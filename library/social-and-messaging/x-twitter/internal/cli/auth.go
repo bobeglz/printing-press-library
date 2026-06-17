@@ -4,267 +4,350 @@
 package cli
 
 import (
-	"context"
-	"crypto/rand"
-	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"net"
-	"net/http"
-	"net/url"
-	"os"
-	"os/exec"
-	"runtime"
 	"strings"
 	"time"
 
+	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/cliutil"
 	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/x-twitter/internal/config"
 	"github.com/spf13/cobra"
+	"os"
+	"os/exec"
+	"runtime"
 )
 
 func newAuthCmd(flags *rootFlags) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "auth",
-		Short: "Manage authentication for X (Twitter)",
+		Short: "Manage authentication for X",
+		RunE:  parentNoSubcommandRunE(flags),
 	}
 
-	cmd.AddCommand(newAuthLoginCmd(flags))
+	cmd.AddCommand(newXAuthLoginCmd(flags))
+	cmd.AddCommand(newAuthSetupCmd(flags))
 	cmd.AddCommand(newAuthStatusCmd(flags))
+	cmd.AddCommand(newAuthSetBearerTokenCmd(flags))
+	cmd.AddCommand(newAuthSetTokenCmd(flags))
+	cmd.AddCommand(newAuthImportOAuth2Cmd(flags))
+	cmd.AddCommand(newAuthOAuth2LoginCmd(flags))
 	cmd.AddCommand(newAuthLogoutCmd(flags))
 
 	return cmd
 }
 
-func newAuthLoginCmd(flags *rootFlags) *cobra.Command {
-	var clientID string
-	var clientSecret string
-	var port int
-
+func newAuthImportOAuth2Cmd(flags *rootFlags) *cobra.Command {
+	var accessToken, refreshToken, scopes, expiresAt, expiresIn, clientID, clientSecret string
 	cmd := &cobra.Command{
-		Use:   "login",
-		Short: "Authenticate via OAuth2",
+		Use:   "import-oauth2 --access-token <token> [--client-id <id>]",
+		Short: "Import an OAuth2 user-context token for personal reads and writes",
+		Example: `  x-twitter-pp-cli auth import-oauth2 --access-token "$X_TOKEN" --scopes tweet.read,tweet.write,users.read,offline.access
+  x-twitter-pp-cli auth import-oauth2 --client-id "$X_CLIENT_ID" --access-token "$X_TOKEN" --refresh-token "$X_REFRESH" --expires-in 2h`,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if clientID == "" {
-				return fmt.Errorf("--client-id is required")
+			accessToken = strings.TrimSpace(accessToken)
+			if accessToken == "" {
+				return usageErr(fmt.Errorf("--access-token is required"))
 			}
-
+			expiry, err := parseOAuth2Expiry(expiresAt, expiresIn)
+			if err != nil {
+				return usageErr(err)
+			}
 			cfg, err := config.Load(flags.configPath)
 			if err != nil {
-				return err
+				return configErr(err)
 			}
-
-			stateBytes := make([]byte, 16)
-			if _, err := rand.Read(stateBytes); err != nil {
-				return fmt.Errorf("generating state: %w", err)
+			clientID = strings.TrimSpace(clientID)
+			clientSecret = strings.TrimSpace(clientSecret)
+			refreshToken = strings.TrimSpace(refreshToken)
+			if refreshToken != "" && clientID == "" && strings.TrimSpace(cfg.ClientID) == "" {
+				return usageErr(fmt.Errorf("--client-id is required when importing a refresh token; token refresh needs the OAuth2 app client ID"))
 			}
-			state := hex.EncodeToString(stateBytes)
-
-			listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
-			if err != nil {
-				return fmt.Errorf("starting callback server: %w", err)
+			scopeList := cliutil.SplitCSV(scopes)
+			if err := cfg.SaveOAuth2UserContext(clientID, clientSecret, accessToken, refreshToken, expiry, scopeList); err != nil {
+				return configErr(fmt.Errorf("saving OAuth2 user-context token: %w", err))
 			}
-			defer listener.Close()
-
-			redirectURI := fmt.Sprintf("http://localhost:%d/callback", listener.Addr().(*net.TCPAddr).Port)
-
-			authURL := "https://api.x.com/2/oauth2/authorize"
-			params := url.Values{
-				"client_id":     {clientID},
-				"redirect_uri":  {redirectURI},
-				"response_type": {"code"},
-				"state":         {state},
-				"access_type":   {"offline"},
-				"prompt":        {"consent"},
+			envOverrideWarning := ""
+			if os.Getenv("X_OAUTH2_USER_TOKEN") != "" {
+				envOverrideWarning = "X_OAUTH2_USER_TOKEN is set and will shadow the imported token on subsequent commands; unset it or update it to match the imported token."
 			}
-			scopes := []string{"block.read", "bookmark.read", "bookmark.write", "dm.read", "dm.write", "follows.read", "follows.write", "like.read", "like.write", "list.read", "list.write", "media.write", "mute.read", "mute.write", "offline.access", "space.read", "timeline.read", "tweet.moderate.write", "tweet.read", "tweet.write", "users.read"}
-			if len(scopes) > 0 {
-				params.Set("scope", strings.Join(scopes, " "))
+			out := map[string]any{
+				"saved":                 true,
+				"auth_lane":             "oauth2_user_context",
+				"config_path":           cfg.Path,
+				"refresh_token_present": refreshToken != "",
+				"client_id_present":     clientID != "" || strings.TrimSpace(cfg.ClientID) != "",
 			}
-
-			fullURL := authURL + "?" + params.Encode()
-			fmt.Fprintf(os.Stderr, "Opening browser for authentication...\n")
-			fmt.Fprintf(os.Stderr, "If the browser doesn't open, visit:\n%s\n\n", fullURL)
-			openBrowser(fullURL)
-
-			codeCh := make(chan string, 1)
-			errCh := make(chan error, 1)
-
-			mux := http.NewServeMux()
-			mux.HandleFunc("/callback", func(w http.ResponseWriter, r *http.Request) {
-				if r.URL.Query().Get("state") != state {
-					errCh <- fmt.Errorf("state mismatch")
-					http.Error(w, "State mismatch", http.StatusBadRequest)
-					return
+			if clientSecret != "" || strings.TrimSpace(cfg.ClientSecret) != "" {
+				out["client_secret_present"] = true
+			}
+			if envOverrideWarning != "" {
+				out["env_override_warning"] = envOverrideWarning
+			}
+			if !expiry.IsZero() {
+				out["expires_at"] = expiry.UTC().Format(time.RFC3339)
+			}
+			if len(scopeList) > 0 {
+				out["scopes"] = scopeList
+				if missing := missingScopesForWorkflows(scopeList); len(missing) > 0 {
+					out["missing_for"] = missing
 				}
-				if errMsg := r.URL.Query().Get("error"); errMsg != "" {
-					errCh <- fmt.Errorf("auth error: %s", errMsg)
-					http.Error(w, errMsg, http.StatusBadRequest)
-					return
-				}
-				code := r.URL.Query().Get("code")
-				if code == "" {
-					errCh <- fmt.Errorf("no code in callback")
-					http.Error(w, "No code", http.StatusBadRequest)
-					return
-				}
-				w.Header().Set("Content-Type", "text/html")
-				fmt.Fprint(w, "<html><body><h2>Authentication successful!</h2><p>You can close this tab.</p></body></html>")
-				codeCh <- code
-			})
-
-			server := &http.Server{Handler: mux}
-			go server.Serve(listener)
-
-			var code string
-			select {
-			case code = <-codeCh:
-			case err := <-errCh:
-				return err
-			case <-time.After(2 * time.Minute):
-				return fmt.Errorf("authentication timed out after 2 minutes")
 			}
-
-			server.Shutdown(context.Background())
-
-			tokenURL := "https://api.x.com/2/oauth2/token"
-			tokenParams := url.Values{
-				"grant_type":   {"authorization_code"},
-				"code":         {code},
-				"redirect_uri": {redirectURI},
-				"client_id":    {clientID},
+			if flags.asJSON {
+				return printJSONFiltered(cmd.OutOrStdout(), out, flags)
 			}
-			if clientSecret != "" {
-				tokenParams.Set("client_secret", clientSecret)
+			fmt.Fprintf(cmd.OutOrStdout(), "OAuth2 user-context token saved to %s\n", cfg.Path)
+			if envOverrideWarning != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Warning: %s\n", envOverrideWarning)
 			}
-
-			resp, err := http.PostForm(tokenURL, tokenParams)
-			if err != nil {
-				return fmt.Errorf("exchanging code for token: %w", err)
+			if len(scopeList) > 0 {
+				fmt.Fprintf(cmd.OutOrStdout(), "Scopes: %s\n", strings.Join(scopeList, ", "))
 			}
-			defer resp.Body.Close()
-
-			if resp.StatusCode >= 400 {
-				var body map[string]any
-				if err := json.NewDecoder(resp.Body).Decode(&body); err == nil {
-					return fmt.Errorf("exchanging code for token: HTTP %d: %v", resp.StatusCode, body)
-				}
-				return fmt.Errorf("exchanging code for token: HTTP %d", resp.StatusCode)
+			if !expiry.IsZero() {
+				fmt.Fprintf(cmd.OutOrStdout(), "Expires: %s\n", expiry.UTC().Format(time.RFC3339))
 			}
-
-			var tokenResp struct {
-				AccessToken  string `json:"access_token"`
-				RefreshToken string `json:"refresh_token"`
-				ExpiresIn    int    `json:"expires_in"`
-				TokenType    string `json:"token_type"`
-			}
-			if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
-				return fmt.Errorf("parsing token response: %w", err)
-			}
-			if tokenResp.AccessToken == "" {
-				return fmt.Errorf("no access token in response")
-			}
-
-			expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
-			if err := cfg.SaveTokens(clientID, clientSecret, tokenResp.AccessToken, tokenResp.RefreshToken, expiry); err != nil {
-				return fmt.Errorf("saving tokens: %w", err)
-			}
-
-			fmt.Fprintf(os.Stderr, "%s Authentication successful! Token expires at %s\n", green("OK"), expiry.Format(time.RFC3339))
+			fmt.Fprintln(cmd.OutOrStdout(), "Run `x-twitter-pp-cli users get-me --agent` or `x-twitter-pp-cli doctor --json` to verify the token against /2/users/me.")
 			return nil
 		},
 	}
-
-	cmd.Flags().StringVar(&clientID, "client-id", os.Getenv("X_CLIENT_ID"), "OAuth2 client ID")
-	cmd.Flags().StringVar(&clientSecret, "client-secret", os.Getenv("X_CLIENT_SECRET"), "OAuth2 client secret")
-	cmd.Flags().IntVar(&port, "port", 8085, "Local callback server port")
-
+	cmd.Flags().StringVar(&accessToken, "access-token", "", "OAuth2 user-context access token")
+	cmd.Flags().StringVar(&clientID, "client-id", "", "OAuth2 client ID used to refresh the token")
+	cmd.Flags().StringVar(&clientSecret, "client-secret", "", "OAuth2 client secret used to refresh the token, if required")
+	cmd.Flags().StringVar(&refreshToken, "refresh-token", "", "OAuth2 refresh token, if available")
+	cmd.Flags().StringVar(&scopes, "scopes", "", "Comma-separated OAuth2 scopes granted to the token")
+	cmd.Flags().StringVar(&expiresAt, "expires-at", "", "Token expiry as RFC3339 timestamp")
+	cmd.Flags().StringVar(&expiresIn, "expires-in", "", "Token lifetime from now, such as 2h or 90m")
 	return cmd
+}
+
+func parseOAuth2Expiry(expiresAt, expiresIn string) (time.Time, error) {
+	expiresAt = strings.TrimSpace(expiresAt)
+	expiresIn = strings.TrimSpace(expiresIn)
+	if expiresAt != "" && expiresIn != "" {
+		return time.Time{}, fmt.Errorf("set only one of --expires-at or --expires-in")
+	}
+	if expiresAt != "" {
+		t, err := time.Parse(time.RFC3339, expiresAt)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("invalid --expires-at %q: %w", expiresAt, err)
+		}
+		return t, nil
+	}
+	if expiresIn != "" {
+		d, err := time.ParseDuration(expiresIn)
+		if err != nil {
+			return time.Time{}, fmt.Errorf("invalid --expires-in %q: %w", expiresIn, err)
+		}
+		return time.Now().UTC().Add(d), nil
+	}
+	return time.Time{}, nil
+}
+
+// newAuthSetupCmd prints concrete steps for getting a credential. Side-effect
+// rule: print by default, --launch opt-in to open the URL, short-circuit when
+// the verifier is running this in a sandboxed subprocess.
+func newAuthSetupCmd(_ *rootFlags) *cobra.Command {
+	var launch bool
+	cmd := &cobra.Command{
+		Use:     "setup",
+		Short:   "Print steps for obtaining a credential (use --launch to open the URL)",
+		Example: "  x-twitter-pp-cli auth setup\n  x-twitter-pp-cli auth setup --launch",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			w := cmd.OutOrStdout()
+			fmt.Fprintln(w, "Get credentials at: https://console.x.com/")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "Auth lanes:")
+			fmt.Fprintln(w, "  1. App-only Bearer token: public read-only API access such as tweet/user lookup, recent search, lists, and spaces. Store it with `auth set-bearer-token` or set X_BEARER_TOKEN.")
+			fmt.Fprintln(w, "  2. OAuth2 user-context token: personal reads and writes such as /2/users/me, bookmarks, likes, follows, posting, replies, and owned metrics. Run `auth oauth2-login --client-id <client-id>` to complete the authorization-code + PKCE browser flow, or use `auth import-oauth2` when you already have a token.")
+			fmt.Fprintln(w, "  3. X Articles cookies: browser-cookie lane captured with `auth login --chrome` for article authoring workflows.")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "Recommended setup order:")
+			fmt.Fprintln(w, "  x-twitter-pp-cli auth set-bearer-token <bearer-token>")
+			fmt.Fprintln(w, "  # Add http://127.0.0.1:8787/callback as an OAuth2 redirect URI in the X developer app first.")
+			fmt.Fprintln(w, "  x-twitter-pp-cli auth oauth2-login --client-id <oauth2-client-id>")
+			fmt.Fprintln(w, "  # Non-interactive fallback when you already have tokens:")
+			fmt.Fprintln(w, "  x-twitter-pp-cli auth import-oauth2 --client-id <oauth2-client-id> --access-token <oauth2-access-token> --refresh-token <oauth2-refresh-token> --scopes tweet.read,tweet.write,users.read,offline.access,bookmark.read,like.read,like.write,follows.read,follows.write")
+			fmt.Fprintln(w, "  x-twitter-pp-cli auth login --chrome")
+			fmt.Fprintln(w, "")
+			fmt.Fprintln(w, "Deprecated: `auth set-token` is kept as an alias for `auth set-bearer-token` only. Do not use it for OAuth2 user-context tokens.")
+			fmt.Fprintln(w, "Run `x-twitter-pp-cli doctor --json` to verify which lanes are configured and what each enables.")
+			if !launch {
+				return nil
+			}
+			launchURL := "https://console.x.com/"
+			if cliutil.IsVerifyEnv() {
+				fmt.Fprintf(w, "would launch: %s\n", launchURL)
+				return nil
+			}
+			if err := openSetupURL(launchURL); err != nil {
+				fmt.Fprintf(cmd.ErrOrStderr(), "could not open browser automatically: %v\nopen this URL manually: %s\n", err, launchURL)
+			}
+			return nil
+		},
+	}
+	cmd.Flags().BoolVar(&launch, "launch", false, "Open the setup URL in your default browser")
+	return cmd
+}
+
+// openSetupURL opens url in the OS default browser. Per the side-effect rule,
+// the caller short-circuits with cliutil.IsVerifyEnv() before this is reached.
+func openSetupURL(url string) error {
+	var c *exec.Cmd
+	switch runtime.GOOS {
+	case "darwin":
+		c = exec.Command("open", url)
+	case "linux":
+		c = exec.Command("xdg-open", url)
+	case "windows":
+		c = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
+	default:
+		return fmt.Errorf("unsupported OS: %s", runtime.GOOS)
+	}
+	return c.Start()
 }
 
 func newAuthStatusCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "status",
-		Short: "Show authentication status",
+		Use:     "status",
+		Short:   "Show authentication status",
+		Example: "  x-twitter-pp-cli auth status",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(flags.configPath)
 			if err != nil {
-				return err
+				return configErr(err)
 			}
 
 			w := cmd.OutOrStdout()
-			authed := cfg.AccessToken != ""
-			// JSON envelope: {authenticated, source, config}.
+			header := cfg.AuthHeader()
+			authed := header != ""
+			// JSON envelope: {authenticated, verified, source, config}. When not
+			// authenticated, write the envelope first then return authErr
+			// so exit code carries the auth-failure signal.
 			if flags.asJSON {
 				out := map[string]any{
 					"authenticated": authed,
+					"verified":      false,
 					"source":        cfg.AuthSource,
 					"config":        cfg.Path,
 				}
-				return printJSONFiltered(w, out, flags)
-			}
-
-			if !authed {
-				fmt.Fprintf(w, "  %s Not authenticated. Run 'auth login' to authenticate.\n", red("FAIL"))
+				if printErr := printJSONFiltered(w, out, flags); printErr != nil {
+					return printErr
+				}
+				if !authed {
+					return authErr(fmt.Errorf("no credentials configured"))
+				}
 				return nil
 			}
-
-			if cfg.TokenExpiry.IsZero() {
-				fmt.Fprintf(w, "  %s Authenticated (no expiry info)\n", green("OK"))
-			} else if time.Now().Before(cfg.TokenExpiry) {
-				fmt.Fprintf(w, "  %s Authenticated (expires %s)\n", green("OK"), cfg.TokenExpiry.Format(time.RFC3339))
-			} else {
-				if cfg.RefreshToken != "" {
-					fmt.Fprintf(w, "  %s Token expired (will auto-refresh on next request)\n", yellow("WARN"))
-				} else {
-					fmt.Fprintf(w, "  %s Token expired. Run 'auth login' to re-authenticate.\n", red("FAIL"))
-				}
+			if !authed {
+				fmt.Fprintln(w, red("Not authenticated"))
+				fmt.Fprintln(w, "")
+				fmt.Fprintln(w, "Set credentials:")
+				fmt.Fprintln(w, "  x-twitter-pp-cli auth set-bearer-token <bearer-token> # App-only Bearer token for public read-only API access: tweet/user lookup, recent search, lists, spaces. Alternative: export X_BEARER_TOKEN=\"your-token-here\".")
+				fmt.Fprintln(w, "  x-twitter-pp-cli auth oauth2-login --client-id <oauth2-client-id> # OAuth2 user-context browser flow for /2/users/me, bookmarks, likes, follows, writes, and owned metrics. Add http://127.0.0.1:8787/callback to your X app redirect URIs first.")
+				fmt.Fprintln(w, "  x-twitter-pp-cli auth import-oauth2 --client-id <oauth2-client-id> --access-token <oauth2-access-token> --refresh-token <oauth2-refresh-token> --scopes tweet.read,tweet.write,users.read,offline.access,bookmark.read,like.read,like.write,follows.read,follows.write # Non-interactive fallback when you already have OAuth2 tokens.")
+				fmt.Fprintln(w, "  x-twitter-pp-cli auth login --chrome # Optional browser-cookie lane for X Articles.")
+				fmt.Fprintln(w, "  x-twitter-pp-cli auth set-token <bearer-token> # Deprecated alias for set-bearer-token; do not use for OAuth2 user-context tokens.")
+				return authErr(fmt.Errorf("no credentials configured"))
 			}
 
-			if cfg.AuthSource != "" {
-				fmt.Fprintf(w, "  source: %s\n", cfg.AuthSource)
-			}
+			fmt.Fprintln(w, green("Credentials present (not verified)"))
+			fmt.Fprintf(w, "  Source: %s\n", cfg.AuthSource)
+			fmt.Fprintf(w, "  Config: %s\n", cfg.Path)
 			return nil
+		},
+	}
+}
+
+func saveBearerToken(cmd *cobra.Command, flags *rootFlags, token string, deprecatedAlias bool) error {
+	cfg, err := config.Load(flags.configPath)
+	if err != nil {
+		return configErr(err)
+	}
+	if err := cfg.SaveBearerToken(token); err != nil {
+		return configErr(fmt.Errorf("saving bearer token: %w", err))
+	}
+
+	out := map[string]any{
+		"saved":       true,
+		"auth_lane":   "app_only_bearer",
+		"config_path": cfg.Path,
+	}
+	if deprecatedAlias {
+		out["deprecated_alias"] = "auth set-token is deprecated; use auth set-bearer-token for app-only Bearer tokens and auth import-oauth2 for user-context tokens"
+	}
+	if flags.asJSON {
+		return printJSONFiltered(cmd.OutOrStdout(), out, flags)
+	}
+	if deprecatedAlias {
+		fmt.Fprintln(cmd.OutOrStdout(), "Warning: `auth set-token` is deprecated. Use `auth set-bearer-token` for app-only Bearer tokens; use `auth import-oauth2` for OAuth2 user-context tokens.")
+	}
+	fmt.Fprintf(cmd.OutOrStdout(), "Bearer token saved to %s\n", cfg.Path)
+	fmt.Fprintln(cmd.OutOrStdout(), "Run `x-twitter-pp-cli doctor --json` to verify the app-only API lane.")
+	return nil
+}
+
+func newAuthSetBearerTokenCmd(flags *rootFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:     "set-bearer-token <token>",
+		Short:   "Save an app-only X API Bearer token for public read-only API access",
+		Example: "  x-twitter-pp-cli auth set-bearer-token YOUR_BEARER_TOKEN_HERE",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return saveBearerToken(cmd, flags, args[0], false)
+		},
+	}
+}
+
+func newAuthSetTokenCmd(flags *rootFlags) *cobra.Command {
+	return &cobra.Command{
+		Use:     "set-token <token>",
+		Short:   "Deprecated alias for set-bearer-token; do not use for OAuth2 user-context tokens",
+		Example: "  x-twitter-pp-cli auth set-token YOUR_BEARER_TOKEN_HERE\n  # Deprecated: prefer `x-twitter-pp-cli auth set-bearer-token YOUR_BEARER_TOKEN_HERE`",
+		Args:    cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			return saveBearerToken(cmd, flags, args[0], true)
 		},
 	}
 }
 
 func newAuthLogoutCmd(flags *rootFlags) *cobra.Command {
 	return &cobra.Command{
-		Use:   "logout",
-		Short: "Remove stored authentication tokens",
+		Use:     "logout",
+		Short:   "Clear stored credentials",
+		Example: "  x-twitter-pp-cli auth logout",
 		RunE: func(cmd *cobra.Command, args []string) error {
 			cfg, err := config.Load(flags.configPath)
 			if err != nil {
-				return err
+				return configErr(err)
 			}
+
 			if err := cfg.ClearTokens(); err != nil {
-				return fmt.Errorf("clearing tokens: %w", err)
+				return configErr(fmt.Errorf("clearing tokens: %w", err))
 			}
-			// JSON envelope: {cleared: true}. The OAuth flavor does not
-			// surface a "note" key because env-var creds aren't part of
-			// this auth flow's contract.
+
+			// Identify which (if any) auth env var is still exported so the
+			// JSON envelope and the human prose can both surface it.
+			envStillSet := ""
+			if envStillSet == "" && os.Getenv("X_BEARER_TOKEN") != "" {
+				envStillSet = "X_BEARER_TOKEN"
+			}
+			if envStillSet == "" && os.Getenv("X_OAUTH2_USER_TOKEN") != "" {
+				envStillSet = "X_OAUTH2_USER_TOKEN"
+			}
+
+			// JSON envelope: {cleared: true, note?: "<env_var> env var is still set"}.
 			if flags.asJSON {
-				return printJSONFiltered(cmd.OutOrStdout(), map[string]any{
-					"cleared": true,
-				}, flags)
+				out := map[string]any{"cleared": true}
+				if envStillSet != "" {
+					out["note"] = envStillSet + " env var is still set"
+				}
+				return printJSONFiltered(cmd.OutOrStdout(), out, flags)
 			}
-			fmt.Fprintf(os.Stderr, "Logged out. Tokens removed.\n")
+
+			if envStillSet != "" {
+				fmt.Fprintf(cmd.OutOrStdout(), "Config cleared. Note: %s env var is still set.\n", envStillSet)
+				return nil
+			}
+			fmt.Fprintln(cmd.OutOrStdout(), "Logged out. Credentials cleared.")
 			return nil
 		},
 	}
-}
-
-func openBrowser(url string) {
-	var cmd *exec.Cmd
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("rundll32", "url.dll,FileProtocolHandler", url)
-	default:
-		return
-	}
-	cmd.Start()
 }

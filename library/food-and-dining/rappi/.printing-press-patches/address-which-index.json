@@ -1,0 +1,13 @@
+{
+  "schema_version": 2,
+  "id": "address-which-index",
+  "applied_at": "2026-06-04",
+  "base_run_id": "20260518-200403",
+  "base_printing_press_version": "4.2.1",
+  "files": [
+    "internal/cli/which.go"
+  ],
+  "summary": "Added address use to the curated which index.",
+  "reason": "Generated which entries are static; agents need natural-language discovery for changing delivery location.",
+  "validated_outcome": "Smoke verification checks which \"change my delivery address\" returns the address entry."
+}

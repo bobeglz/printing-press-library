@@ -46,6 +46,7 @@ Our AeroAPI push notification [testing interface](/commercial/aeroapi/send.rvt)
 provides a quick and easy way to test the delivery of customized alerts via AeroAPI push.
 
 Created by [@mvanhorn](https://github.com/mvanhorn) (Matt Van Horn).
+Contributors: [@lloydarmbrust](https://github.com/lloydarmbrust) (Lloyd Armbrust).
 
 ## Install
 
@@ -91,6 +92,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install flight-goat --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -99,16 +108,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-flight-goat 
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-flight-goat --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install flight-goat --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install flight-goat --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -185,6 +196,25 @@ flight-goat-pp-cli airports get mock-value
 
 Run `flight-goat-pp-cli --help` for the full command reference and flag list.
 
+### Delay Assessment
+
+Use `assess` when a user has a delayed flight or route and needs to decide
+whether the problem is airport-wide, destination-wide, or specific to one
+operator/aircraft.
+
+```bash
+flight-goat-pp-cli assess --origin SFO --destination DCA --delayed-flight UA123 --agent
+flight-goat-pp-cli assess --origin KSFO --destination KJFK --depart-after 18:00 --no-prices --agent
+```
+
+The report joins AeroAPI airport delays, disruption counts, weather, route
+alternatives, delayed-flight and inbound-aircraft status, FAA NAS Status, and
+optional Google Flights price context. Failed upstream calls are returned in
+`sources` and `decision.missing_evidence` so partial reports are explicit.
+Raw AeroAPI payloads are omitted by default; add `--include-raw` when an agent
+needs the original JSON for audit or custom scoring. FAA NOTAM data is not
+included yet.
+
 ### Google Flights Currency
 
 Google Flights price commands accept `--currency <ISO-4217-code>` for native
@@ -192,7 +222,7 @@ Google Flights prices in that currency. The default is USD when the flag is
 omitted.
 
 ```bash
-flight-goat-pp-cli flights MAN AGP 2026-05-10 --currency GBP --sort cheapest
+flight-goat-pp-cli flights MAN AGP 2026-05-10 --currency GBP --sort=cheapest
 flight-goat-pp-cli dates JFK CDG --from 2026-07-01 --to 2026-07-31 --currency EUR --sort
 flight-goat-pp-cli compare SEA LHR 2026-06-15 --currency GBP
 ```

@@ -50,6 +50,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install lemonsqueezy --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -58,16 +66,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-lemonsqueezy
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-lemonsqueezy --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install lemonsqueezy --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install lemonsqueezy --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -114,6 +124,38 @@ Add to your Claude Desktop config (`~/Library/Application Support/Claude/claude_
 ## Authentication
 
 Lemon Squeezy uses HTTP Bearer auth. Create an API key at https://app.lemonsqueezy.com/settings/api, then export `LEMONSQUEEZY_API_KEY=<your-key>`. Verify with `lemonsqueezy-pp-cli doctor`.
+
+
+## Catalog setup and checkout limitations
+
+Lemon Squeezy's public API exposes catalog resources as read-only: `products`, `variants`, and `files` support list/get, not create/update/delete. The CLI must not use private dashboard APIs and must not fake product-create dry-runs. For catalog setup, generate a dashboard handoff packet:
+
+```bash
+lemonsqueezy-pp-cli capabilities --resource products --json
+lemonsqueezy-pp-cli dashboard handoff product \
+  --name "Juno Home Chief of Staff Starter Kit" \
+  --slug juno-home-chief-of-staff-starter-kit \
+  --sku juno-home-chief-of-staff-starter-kit \
+  --price-usd 149 \
+  --type "digital download" \
+  --redirect-url https://www.littlemight.com/ai-house-manager/thank-you/ \
+  --affiliate-percent 25 \
+  --affiliate-approval "manual approval" \
+  --affiliate-cookie-days 30 \
+  --json
+```
+
+Once the product/variant/file exist in the dashboard, checkout creation is API-supported via `POST /v1/checkouts`:
+
+```bash
+lemonsqueezy-pp-cli checkouts create \
+  --store-id <STORE_ID> \
+  --variant-id <VARIANT_ID> \
+  --redirect-url https://www.littlemight.com/ai-house-manager/thank-you/ \
+  --dry-run --json
+```
+
+Live checkout creation validates the store and variant first unless `--skip-validate` is set, then prints the checkout ID/URL returned by Lemon Squeezy.
 
 ## Quick Start
 
@@ -246,6 +288,15 @@ Run `lemonsqueezy-pp-cli --help` for the full command reference and flag list.
 
 ## Commands
 
+### agent-native catalog workflows
+
+- **`lemonsqueezy-pp-cli capabilities`** - Show public API list/get/create/update/delete support by resource
+- **`lemonsqueezy-pp-cli dashboard`** - Dashboard-only Lemon Squeezy workflows and handoff packets
+- **`lemonsqueezy-pp-cli dashboard handoff`** - Generate dashboard handoff artifacts for unsupported public API writes
+- **`lemonsqueezy-pp-cli dashboard handoff product`** - Generate exact dashboard fields for a product/variant/file setup handoff
+- **`lemonsqueezy-pp-cli import <resource>`** - Import JSONL records only for API-writable resources; refuses products/variants/files as read-only
+- **`lemonsqueezy-pp-cli which [query]`** - Resolve natural-language capability requests, including negative catalog guidance
+
 ### affiliates
 
 Manage affiliates
@@ -257,7 +308,7 @@ Manage affiliates
 
 Manage checkouts
 
-- **`lemonsqueezy-pp-cli checkouts create`** - Lemon Squeezy Create a checkout
+- **`lemonsqueezy-pp-cli checkouts create`** - Create a checkout URL for an existing store/variant; supports safe JSON:API dry-run and live preflight validation
 - **`lemonsqueezy-pp-cli checkouts get`** - Lemon Squeezy Retrieve a checkout
 - **`lemonsqueezy-pp-cli checkouts list`** - Lemon Squeezy List all checkouts
 

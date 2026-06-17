@@ -50,6 +50,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install sec-edgar --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -58,16 +66,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-sec-edgar --
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-sec-edgar --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install sec-edgar --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install sec-edgar --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
@@ -202,6 +212,16 @@ These capabilities aren't available in any other tool for this API.
 
   ```bash
   sec-edgar-pp-cli late-filers --since 90d --form 10-K --json
+  ```
+
+### Proxy & ownership
+- **`ownership`** — Resolve a ticker, name, or CIK, find the company's latest DEF 14A proxy statement, fetch the document, and extract the "Security Ownership of Certain Beneficial Owners" section as readable text.
+
+  _The beneficial-ownership table is the one disclosure every proxy carries under a near-identical heading, and reaching it means chaining submissions → document fetch → HTML section extraction that no single SEC endpoint provides. Pick this when an agent needs who-owns-the-company straight from the proxy, not a list of filings._
+
+  ```bash
+  sec-edgar-pp-cli ownership MSFT --json
+  sec-edgar-pp-cli ownership AAPL --save apple-ownership.txt
   ```
 
 ## Usage

@@ -5,6 +5,7 @@
 Substack has no public API and the closed-source tools that work around it (WriteStack, StackSweller) stop at Notes scheduling and a heatmap. This CLI covers the read endpoints the community has reverse-engineered across the 8 wrappers we studied, plus rich authoring (30+ flags on `drafts create`/`update`, Markdown→ProseMirror conversion), a multi-publication portfolio layer (`portfolio sync` → `portfolio`, `posts best`, `grep`, `schedule board`, `subs churn`, `subs cross-sell`), and local-SQLite analytics. Every command is MCP-callable so an agent can drive the full publish → engage → measure → swap loop.
 
 Created by [@chirantan](https://github.com/chirantan) (Chirantan Rajhans).
+Contributors: [@JPresting](https://github.com/JPresting) (JimPresting), [@tmchow](https://github.com/tmchow) (Trevin Chow).
 
 ## Install
 
@@ -50,6 +51,14 @@ Download a pre-built binary for your platform from the [latest release](https://
 <!-- pp-hermes-install-anchor -->
 ## Install for Hermes
 
+Install the CLI binary first. The installer writes binaries to a per-user managed bin directory by default: `$HOME/.local/bin` on macOS/Linux and `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows.
+
+```bash
+npx -y @mvanhorn/printing-press-library install substack --cli-only
+```
+
+Then install the focused Hermes skill.
+
 From the Hermes CLI:
 
 ```bash
@@ -58,16 +67,18 @@ hermes skills install mvanhorn/printing-press-library/cli-skills/pp-substack --f
 
 Inside a Hermes chat session:
 
-```text
+```bash
 /skills install mvanhorn/printing-press-library/cli-skills/pp-substack --force
 ```
 
+Restart the Hermes session or gateway if the newly installed skill is not visible immediately.
+
 ## Install for OpenClaw
 
-Install both the CLI binary and the focused OpenClaw skill into runtime-visible locations:
+Install both the CLI binary and the focused OpenClaw skill. The installer defaults binaries to a per-user bin directory (`$HOME/.local/bin` on macOS/Linux, `%LOCALAPPDATA%\Programs\PrintingPress\bin` on Windows):
 
 ```bash
-npx -y @mvanhorn/printing-press-library install substack --agent openclaw --bin-dir ~/.local/bin
+npx -y @mvanhorn/printing-press-library install substack --agent openclaw
 ```
 
 Restart the OpenClaw session or gateway if the newly installed skill is not visible immediately.
