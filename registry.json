@@ -12513,10 +12513,6 @@
       "path": "library/other/ufo-goat",
       "printer": "davemorin",
       "printer_name": "Dave Morin",
-      "creator": {
-        "handle": "davemorin",
-        "name": "Dave Morin"
-      },
       "mcp": {
         "binary": "ufo-goat-pp-mcp",
         "transports": [
