@@ -84,11 +84,24 @@ func saveAddressStore(s *addressStore) error {
 	if err != nil {
 		return fmt.Errorf("marshaling addresses: %w", err)
 	}
-	tmp := p + ".tmp"
-	if err := os.WriteFile(tmp, data, 0o600); err != nil {
+	// Write to a uniquely-named temp file in the same dir, then atomically
+	// rename it into place. A unique name (rather than a fixed "<path>.tmp")
+	// keeps two concurrent CLI invocations from racing over the same temp file
+	// and silently losing one writer's changes.
+	tmp, err := os.CreateTemp(filepath.Dir(p), ".addresses-*.tmp")
+	if err != nil {
 		return fmt.Errorf("writing addresses: %w", err)
 	}
-	return os.Rename(tmp, p)
+	tmpPath := tmp.Name()
+	defer func() { _ = os.Remove(tmpPath) }()
+	if _, err := tmp.Write(data); err != nil {
+		_ = tmp.Close()
+		return fmt.Errorf("writing addresses: %w", err)
+	}
+	if err := tmp.Close(); err != nil {
+		return fmt.Errorf("writing addresses: %w", err)
+	}
+	return os.Rename(tmpPath, p)
 }
 
 func emptyAddressStore() *addressStore {

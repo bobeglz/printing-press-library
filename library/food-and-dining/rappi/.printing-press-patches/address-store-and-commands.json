@@ -7,10 +7,11 @@
   "files": [
     "internal/cli/address_store.go",
     "internal/cli/address_store_test.go",
+    "internal/cli/address_store_concurrency_test.go",
     "internal/cli/address.go",
     "internal/cli/address_test.go"
   ],
-  "summary": "Added a typed local store and Cobra address commands for saved delivery addresses.",
-  "reason": "Rappi usage needs a reusable delivery location with nullable coordinates and an active pointer, which generated profiles cannot model safely.",
-  "validated_outcome": "Covered by address store and command tests plus isolated-HOME smoke flows."
+  "summary": "Added a typed local store — persisted atomically via a uniquely-named temp file plus rename so concurrent CLI invocations cannot silently lose a write — and Cobra address commands for saved delivery addresses.",
+  "reason": "Rappi usage needs a reusable delivery location with nullable coordinates and an active pointer, which generated profiles cannot model safely; the store is the sole writer of addresses.json, so its writes must be atomic and safe under concurrent invocations.",
+  "validated_outcome": "Covered by address store and command tests, a concurrent-writers test asserting no torn write or leftover temp file, and isolated-HOME smoke flows."
 }
