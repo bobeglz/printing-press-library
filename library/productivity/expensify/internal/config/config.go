@@ -232,6 +232,7 @@ func (c *Config) AuthHeader() string {
 	}
 	if c.ExpensifyPartnerUserId != "" {
 		return applyAuthFormat("ExpensifyToken {authToken}", map[string]string{
+			"authToken":                 c.ExpensifyPartnerUserId,
 			"partner_user_id":           c.ExpensifyPartnerUserId,
 			"EXPENSIFY_PARTNER_USER_ID": c.ExpensifyPartnerUserId,
 			"token":                     c.ExpensifyPartnerUserId,
@@ -239,6 +240,7 @@ func (c *Config) AuthHeader() string {
 	}
 	if c.ExpensifyPartnerUserSecret != "" {
 		return applyAuthFormat("ExpensifyToken {authToken}", map[string]string{
+			"authToken":                     c.ExpensifyPartnerUserSecret,
 			"partner_user_secret":           c.ExpensifyPartnerUserSecret,
 			"EXPENSIFY_PARTNER_USER_SECRET": c.ExpensifyPartnerUserSecret,
 			"token":                         c.ExpensifyPartnerUserSecret,

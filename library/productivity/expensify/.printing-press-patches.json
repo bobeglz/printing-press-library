@@ -9,45 +9,87 @@
       "id": "created-not-date",
       "summary": "expense create/edit/quick/from-line send the API's canonical `created` field instead of `date` (the user-facing --date flag is unchanged).",
       "reason": "Expensify ignores `date` on /RequestMoney and /EditMoneyRequest, so every back-dated expense landed as today. `created` is what sync reads back. THE HEADLINE BUG.",
-      "files": ["internal/cli/expense_create.go", "internal/cli/expense_edit.go", "internal/cli/expense_quick.go", "internal/cli/expense_from_line.go"],
+      "files": [
+        "internal/cli/expense_create.go",
+        "internal/cli/expense_edit.go",
+        "internal/cli/expense_quick.go",
+        "internal/cli/expense_from_line.go"
+      ],
       "validated_outcome": "Dry-run of `expense create --date 2025-11-17` emits form field created=2025-11-17."
     },
     {
       "id": "expensify-form-wire",
       "summary": "Client form-encodes every request (authToken + flattened fields, referer=ecash) and routes Integration-Server paths through requestJobDescription. The modeled Authorization header is dropped.",
       "reason": "Expensify's New Expensify API expects application/x-www-form-urlencoded with authToken in the body, not a REST JSON+Authorization request. Without this no command reaches the API.",
-      "files": ["internal/client/expensify_request.go", "internal/client/client.go"]
+      "files": [
+        "internal/client/expensify_request.go",
+        "internal/client/client.go"
+      ]
     },
     {
       "id": "surface-jsoncode-407",
       "summary": "Client surfaces an in-body jsonCode 407 (returned with HTTP 200) as a clear re-auth error instead of an empty success.",
       "reason": "Expensify returns HTTP 200 with jsonCode 407 on session expiry, so sync silently reported success/Synced 0 instead of an auth error.",
-      "files": ["internal/client/client.go", "internal/client/expensify_request.go"]
+      "files": [
+        "internal/client/client.go",
+        "internal/client/expensify_request.go"
+      ]
     },
     {
       "id": "dry-run-form-body",
       "summary": "Dry-run decodes and prints the form-encoded request body (authToken masked) instead of attempting a JSON pretty-print that silently shows nothing.",
       "reason": "Bodies are application/x-www-form-urlencoded; the JSON-only dry-run printer showed no fields.",
-      "files": ["internal/client/client.go"]
+      "files": [
+        "internal/client/client.go"
+      ]
     },
     {
       "id": "delete-resolve-refs",
       "summary": "expense delete auto-resolves the IOU reportID + reportActionID required by /DeleteMoneyRequest from just the transactionID.",
       "reason": "DeleteMoneyRequest with only transactionID returns jsonCode 200 but deletes nothing; it needs the IOU report action reference.",
-      "files": ["internal/cli/expense_delete.go"],
+      "files": [
+        "internal/cli/expense_delete.go"
+      ],
       "validated_outcome": "Reference live delete returned 21 onyx updates and the expense was gone."
     },
     {
       "id": "auth-from-chrome",
       "summary": "`auth login --from-chrome` reads the freshest www.expensify.com authToken from Chrome's cookie store (newest by last_update_utc incl. the WAL sidecar; prefix-stripped v10 decrypt with PKCS#7 verification).",
       "reason": "A fresh login leaves stale authToken rows behind; selecting by value length grabbed an expired one, and a not-yet-checkpointed token lives only in the WAL sidecar.",
-      "files": ["internal/cli/auth_login.go", "internal/cli/chrome_cookie.go", "internal/cli/auth.go"]
+      "files": [
+        "internal/cli/auth_login.go",
+        "internal/cli/chrome_cookie.go",
+        "internal/cli/auth.go"
+      ]
     },
     {
       "id": "novel-layer",
       "summary": "Hand-authored local-SQLite novel layer: sync, expense search/rollup/dupes/missing-receipts/quick/from-line/bulk, report draft, damage, plus honest stubs (watch/undo/close/admin policy-diff).",
       "reason": "These transcendence features have no spec representation; they depend on the local store rebuilt in internal/store/store.go.",
-      "files": ["internal/store/store.go", "internal/cli/sync.go", "internal/cli/expense_search.go", "internal/cli/expense_rollup.go", "internal/cli/expense_dupes.go", "internal/cli/expense_missing_receipts.go", "internal/cli/expense_quick.go", "internal/cli/expense_from_line.go", "internal/cli/expense_bulk.go", "internal/cli/report_draft.go", "internal/cli/damage.go", "internal/cli/stubs.go"]
+      "files": [
+        "internal/store/store.go",
+        "internal/cli/sync.go",
+        "internal/cli/expense_search.go",
+        "internal/cli/expense_rollup.go",
+        "internal/cli/expense_dupes.go",
+        "internal/cli/expense_missing_receipts.go",
+        "internal/cli/expense_quick.go",
+        "internal/cli/expense_from_line.go",
+        "internal/cli/expense_bulk.go",
+        "internal/cli/report_draft.go",
+        "internal/cli/damage.go",
+        "internal/cli/stubs.go"
+      ]
+    },
+    {
+      "id": "expensify-authheader-format-key",
+      "summary": "config.AuthHeader() substitution maps include the `authToken` key so the `ExpensifyToken {authToken}` placeholder resolves for the session-token AND both partner-credential branches.",
+      "reason": "A 4.25.0 generator templating bug: the format placeholder is named `authToken` but the generated maps keyed on `auth_token`/`EXPENSIFY_*`/`token`, so applyAuthFormat returned '' for every branch \u2014 doctor reported configured credentials (incl. partner-only) as 'not configured' and 4 internal/cliutil credential tests failed on the clean base. Flag upstream for the generator template.",
+      "files": [
+        "internal/config/config.go"
+      ],
+      "validated_outcome": "doctor reports 'OK Auth: configured' after auth login --from-chrome; internal/cliutil credential tests pass.",
+      "upstream_issue": ""
     }
   ]
 }
