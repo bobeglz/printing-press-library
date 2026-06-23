@@ -408,6 +408,40 @@ func TestSearchTerms(t *testing.T) {
 	}
 }
 
+func TestBuildEntriesIncludesReleaseMetadataFromReleaseFiles(t *testing.T) {
+	cwd, err := os.Getwd()
+	if err != nil {
+		t.Fatal(err)
+	}
+	repoRoot := filepath.Clean(filepath.Join(cwd, "..", ".."))
+	if err := os.Chdir(repoRoot); err != nil {
+		t.Fatalf("chdir repo root: %v", err)
+	}
+	t.Cleanup(func() { _ = os.Chdir(cwd) })
+
+	generatedEntries, err := buildEntries(libraryDir, loadExistingEntries(registryPath))
+	if err != nil {
+		t.Fatalf("build entries: %v", err)
+	}
+
+	checked := 0
+	var substack *Release
+	for _, generated := range generatedEntries {
+		if generated.Release != nil {
+			checked++
+		}
+		if generated.Name == "substack" {
+			substack = generated.Release
+		}
+	}
+	if checked == 0 {
+		t.Fatal("expected at least one .printing-press-release.json-backed registry entry")
+	}
+	if substack == nil || substack.CLIName != "substack-pp-cli" || substack.Version != "2026.6.6" {
+		t.Fatalf("generated substack release = %+v, want substack-pp-cli version 2026.6.6", substack)
+	}
+}
+
 // TestValidateEntries exercises the source-only validation that backs the
 // --validate flag. The required-field set must stay in lockstep with the
 // npm installer's parseRegistry contract — any new requiredString check
