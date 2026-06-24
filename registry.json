@@ -7454,9 +7454,9 @@
       "path": "library/developer-tools/isitagentready",
       "release": {
         "cli_name": "isitagentready-pp-cli",
-        "version": "",
-        "released_at": "",
-        "source_commit": ""
+        "version": "2026.6.1",
+        "released_at": "2026-06-23T17:16:31Z",
+        "source_commit": "bf29d66ced25fbd0bcae008d15ba87bf39ba7c63"
       },
       "printer": "bobeglz",
       "printer_name": "bobe",
@@ -10783,6 +10783,63 @@
       "creator": {
         "handle": "markvandeven",
         "name": "markvandeven"
+      }
+    },
+    {
+      "name": "pexels",
+      "category": "media-and-entertainment",
+      "api": "Pexels",
+      "description": "Every Pexels photo, video, and collection endpoint — plus a local store that adds quota forecasting, dedup-aware bulk download, and one-shot attribution exports no other Pexels tool has.",
+      "search_terms": [
+        "pexels",
+        "pexels-pp-cli",
+        "Every Pexels photo, video, and collection endpoint — plus a local store that adds quota forecasting, dedup-aware bulk download, and one-shot attribution exports no other Pexels tool has.",
+        "Quota forecaster",
+        "quota forecast",
+        "Check before a bulk pull whether it fits your remaining hourly/monthly Pexels quota, with a reset ETA.",
+        "Best-fit resolution picker",
+        "resolve",
+        "Pick the smallest photo size or video file that meets a target dimension without upscaling.",
+        "Attribution ledger + SOURCES export",
+        "attribution export",
+        "Emit a SOURCES.md and per-file .meta.json sidecars crediting every photographer in your local download ledger.",
+        "Dedup + rate-aware bulk download",
+        "download",
+        "Bulk-download a query, skipping media already in your ledger and checkpointing each page so a hit quota stops you gracefully.",
+        "Offline re-search of synced media",
+        "search",
+        "Full-text search media you already synced, with stable ordering and no API call.",
+        "Photographer attribution roll-up",
+        "analytics",
+        "Group your synced photos by photographer to review credit balance and licensing coverage."
+      ],
+      "path": "library/media-and-entertainment/pexels",
+      "printer": "vcolombo",
+      "printer_name": "Vincent Colombo",
+      "creator": {
+        "handle": "vcolombo",
+        "name": "Vincent Colombo"
+      },
+      "contributors": [
+        {
+          "handle": "tmchow",
+          "name": "Trevin Chow"
+        }
+      ],
+      "mcp": {
+        "binary": "pexels-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 9,
+        "public_tool_count": 8,
+        "auth_type": "api_key",
+        "env_vars": [
+          "PEXELS_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
       }
     },
     {
@@ -14297,9 +14354,9 @@
       "path": "library/media-and-entertainment/substack",
       "release": {
         "cli_name": "substack-pp-cli",
-        "version": "2026.6.6",
-        "released_at": "2026-06-21T08:16:26Z",
-        "source_commit": "acb84091ff016c6e7aea5f8cf6956a694aa0d1c7"
+        "version": "2026.6.7",
+        "released_at": "2026-06-23T18:18:47Z",
+        "source_commit": "b32e1926dc4ee0a73f8a8bbf792f4d398b754456"
       },
       "printer": "chirantan",
       "printer_name": "Chirantan Rajhans",
@@ -16648,9 +16705,9 @@
       "path": "library/social-and-messaging/x-twitter",
       "release": {
         "cli_name": "x-twitter-pp-cli",
-        "version": "2026.6.10",
-        "released_at": "2026-06-18T03:04:04Z",
-        "source_commit": "bb795739ffc12c4f7cfcaa2b00eca6b0d39b3653"
+        "version": "2026.6.11",
+        "released_at": "2026-06-24T00:02:25Z",
+        "source_commit": "8649d944b0e138dd3e0133ee58ae036dcb941335"
       },
       "printer": "cathrynlavery",
       "printer_name": "Cathryn Lavery",
