@@ -5848,9 +5848,9 @@
       "path": "library/sales-and-crm/gainsight",
       "release": {
         "cli_name": "gainsight-pp-cli",
-        "version": "",
-        "released_at": "",
-        "source_commit": ""
+        "version": "2026.6.1",
+        "released_at": "2026-06-24T00:45:55Z",
+        "source_commit": "44a31f1116e3848157cd4bd611aaaeef65d7581d"
       },
       "printer": "debgotwired",
       "printer_name": "Deb Mukherjee",
@@ -8295,6 +8295,67 @@
         ],
         "mcp_ready": "full",
         "spec_format": "graphql"
+      }
+    },
+    {
+      "name": "linq",
+      "category": "social-and-messaging",
+      "api": "Linq",
+      "description": "Agent-native messaging API for chats, messages, attachments, phone numbers, contact cards, capability checks, and webhooks",
+      "search_terms": [
+        "linq",
+        "linq-pp-cli",
+        "Agent-native messaging API for chats, messages, attachments, phone numbers, contact cards, capability checks, and webhooks",
+        "Encrypted local mirror",
+        "sync/search/tail",
+        "Caches Linq chats and messages in an encrypted local mirror with searchable text redacted.",
+        "Generic rich message composer",
+        "compose preview/send",
+        "Builds the documented nested message body for generic Linq text, media, rich links, replies, preferred service, idempotency, effects, and text decorations with shared validation.",
+        "Protocol-aware typing and effects",
+        "typing start/stop/pulse, effects list/preview",
+        "Adds bounded typing indicators plus iMessage effect and decoration discovery for generic Linq chats.",
+        "Webhook subscription operations",
+        "webhooks list/show/add-event/remove-event/set-events/doctor",
+        "Wraps webhook subscription management with event-catalog validation, safe read-modify-write event updates, and drift checks for inbound events such as typing indicators.",
+        "Channel capability check",
+        "capability check",
+        "Resolves addresses to iMessage, RCS, or SMS and reports typing, effects, read-receipt, and rich-message feature support without echoing full addresses.",
+        "Attachment lifecycle workflow",
+        "attachments plan/upload/send-url/send-id/audit-url/cleanup",
+        "Plans direct URL versus pre-upload paths, enforces HTTPS and size limits, sends media parts, explains persistent/ephemeral lifecycle, and exposes cleanup.",
+        "Rich link preview workflow",
+        "link-preview audit/send/metadata",
+        "Audits link-only preview rules, blocks first-outbound link openers, sends rich preview parts, and checks Open Graph/Twitter/title/image metadata.",
+        "Reaction workflow",
+        "react add/remove/custom",
+        "Wraps built-in and custom reactions with validation, part-index support, and outbound sticker blocking.",
+        "Contact-share workflow",
+        "contact-share preflight/send",
+        "Preflights native iMessage Name and Photo Sharing by checking contact card readiness, local prior-outbound evidence when available, and once-per-day prompt behavior."
+      ],
+      "path": "library/social-and-messaging/linq",
+      "printer": "cathrynlavery",
+      "printer_name": "Cathryn Lavery",
+      "creator": {
+        "handle": "cathrynlavery",
+        "name": "Cathryn Lavery"
+      },
+      "mcp": {
+        "binary": "linq-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 43,
+        "public_tool_count": 0,
+        "auth_type": "bearer_token",
+        "env_vars": [
+          "LINQ_API_V3_API_KEY",
+          "LINQ_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "openapi3"
       }
     },
     {
