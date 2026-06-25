@@ -6598,9 +6598,9 @@
       "path": "library/marketing/google-ads",
       "release": {
         "cli_name": "google-ads-pp-cli",
-        "version": "2026.6.3",
-        "released_at": "2026-06-21T08:16:26Z",
-        "source_commit": "acb84091ff016c6e7aea5f8cf6956a694aa0d1c7"
+        "version": "2026.6.4",
+        "released_at": "2026-06-25T22:34:38Z",
+        "source_commit": "26fc455839171bf96de0ea54c47e3197a72124ea"
       },
       "printer": "cathrynlavery",
       "printer_name": "Cathryn Lavery",
@@ -11941,6 +11941,46 @@
       }
     },
     {
+      "name": "policy-intel",
+      "category": "other",
+      "api": "Policy Intel",
+      "description": "Federal rulemaking and policy intelligence recipes for Federal Register search, Regulations.gov dockets, comments, and open comment deadlines.",
+      "search_terms": [
+        "policy-intel",
+        "Policy Intel",
+        "policy-intel-pp-cli",
+        "Federal rulemaking and policy intelligence recipes for Federal Register search, Regulations.gov dockets, comments, and open comment deadlines.",
+        "Federal Register search",
+        "federal-register search",
+        "Searches FederalRegister.gov by term, agency slug, publication date, and limit with source links and legal-status caveats.",
+        "Rules and proposed rules",
+        "rules",
+        "Finds recent Federal Register rules and proposed rules for a topic without requiring users to know Federal Register type codes.",
+        "Regulations.gov docket lookup",
+        "docket",
+        "Fetches docket metadata from Regulations.gov v4 using a configured api.data.gov key or DEMO_KEY for smoke testing.",
+        "Public comment listing",
+        "comments",
+        "Lists public comments for a docket with stable agent-ready JSON and public-field caveats.",
+        "Open comment deadlines",
+        "deadlines",
+        "Finds Regulations.gov documents with comment deadlines from a topic, agency, and starting date."
+      ],
+      "path": "library/other/policy-intel",
+      "release": {
+        "cli_name": "policy-intel-pp-cli",
+        "version": "2026.6.1",
+        "released_at": "2026-06-25T22:37:37Z",
+        "source_commit": "65dcc72c59ab6c3d09b72eb18caddc88b31e7ab5"
+      },
+      "printer": "sdhilip200",
+      "printer_name": "Dhilip Subramanian",
+      "creator": {
+        "handle": "sdhilip200",
+        "name": "Dhilip Subramanian"
+      }
+    },
+    {
       "name": "pop",
       "category": "payments",
       "api": "POP",
@@ -16722,6 +16762,40 @@
       }
     },
     {
+      "name": "us-data",
+      "category": "other",
+      "api": "US Data",
+      "description": "Official US public data recipes for CPI, unemployment, Census population lookups, BEA industry setup, and region-comparison briefs.",
+      "search_terms": [
+        "us-data",
+        "US Data",
+        "us-data-pp-cli",
+        "Official US public data recipes for CPI, unemployment, Census population lookups, BEA industry setup, and region-comparison briefs.",
+        "CPI snapshot",
+        "cpi",
+        "Fetches the latest BLS CPI series values and reports the latest month, prior month, and calculated percent change with source/freshness notes.",
+        "Unemployment snapshot",
+        "unemployment",
+        "Fetches the BLS national unemployment series by default, with explicit series override support and state guidance.",
+        "Census population lookup",
+        "population",
+        "Resolves supported city/state names to Census ACS profile geography and fetches population when US_DATA_CENSUS_API_KEY is configured.",
+        "Region comparison brief",
+        "compare-regions",
+        "Builds an agent-readable comparison shell for two regions, combining available Census population facts with clear missing-auth notices.",
+        "BEA industry setup",
+        "industry",
+        "Guides agents through BEA industry/regional data setup and runs BEA requests when US_DATA_BEA_API_KEY is configured."
+      ],
+      "path": "library/other/us-data",
+      "printer": "sdhilip200",
+      "printer_name": "Dhilip Subramanian",
+      "creator": {
+        "handle": "sdhilip200",
+        "name": "Dhilip Subramanian"
+      }
+    },
+    {
       "name": "usgs-earthquakes",
       "category": "other",
       "api": "USGS Earthquakes",
@@ -17702,9 +17776,9 @@
       "path": "library/commerce/yahoo-finance",
       "release": {
         "cli_name": "yahoo-finance-pp-cli",
-        "version": "2026.6.2",
-        "released_at": "2026-06-21T08:16:26Z",
-        "source_commit": "acb84091ff016c6e7aea5f8cf6956a694aa0d1c7"
+        "version": "2026.6.3",
+        "released_at": "2026-06-25T22:35:32Z",
+        "source_commit": "53be22b50d21d8902bba1fd5279e0a1d92976238"
       },
       "printer": "tmchow",
       "printer_name": "Trevin Chow",
