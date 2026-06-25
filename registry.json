@@ -3457,6 +3457,60 @@
       }
     },
     {
+      "name": "copper",
+      "category": "sales-and-crm",
+      "api": "Copper",
+      "description": "The Copper CRM command line no one else built: full CRUD plus a local database, weighted pipeline forecasting, stale-deal detection, and the bulk operations Copper's own API refuses to provide.",
+      "search_terms": [
+        "copper",
+        "copper-pp-cli",
+        "The Copper CRM command line no one else built: full CRUD plus a local database, weighted pipeline forecasting, stale-deal detection, and the bulk operations Copper's own API refuses to provide.",
+        "Weighted pipeline forecast",
+        "forecast",
+        "Weighted expected-revenue roll-up: sums monetary_value x win_probability over open opportunities, grouped by stage, assignee, or close-month.",
+        "Stale-deal sweep",
+        "stale",
+        "Surfaces open opportunities with no interaction in N days, sorted by staleness x value, across all reps.",
+        "Bulk write engine",
+        "bulk",
+        "Applies field updates (stage, owner, custom fields) across many opportunities with bounded concurrency and heuristic 429 backoff.",
+        "Idempotent upsert",
+        "upsert",
+        "Match-then-create-or-update for people and leads; normalizes the people.emails[] vs leads.email shape difference.",
+        "Duplicate finder",
+        "dedupe",
+        "Local SQLite self-join surfacing people or leads that share an email, name, or company.",
+        "Activity log and correct",
+        "log",
+        "Creates an activity with the type resolved by name (bumps interaction_count); log fix deletes and recreates to edit an immutable activity.",
+        "Contact-graph lookup",
+        "who",
+        "Joins an opportunity to its company, people, and recent activities into one related-records view."
+      ],
+      "path": "library/sales-and-crm/copper",
+      "printer": "kmorebetter",
+      "printer_name": "Kerry Morrison",
+      "creator": {
+        "handle": "kmorebetter",
+        "name": "Kerry Morrison"
+      },
+      "mcp": {
+        "binary": "copper-pp-mcp",
+        "transports": [
+          "stdio",
+          "http"
+        ],
+        "tool_count": 65,
+        "public_tool_count": 0,
+        "auth_type": "api_key",
+        "env_vars": [
+          "COPPER_API_KEY"
+        ],
+        "mcp_ready": "full",
+        "spec_format": "internal"
+      }
+    },
+    {
       "name": "craigslist",
       "category": "commerce",
       "api": "Craigslist",
@@ -6173,6 +6227,12 @@
         "Run read-only SQL against synced API records for compound questions the upstream API does not expose directly."
       ],
       "path": "library/sales-and-crm/gladly",
+      "release": {
+        "cli_name": "gladly-pp-cli",
+        "version": "2026.6.1",
+        "released_at": "2026-06-25T07:39:41Z",
+        "source_commit": "33fbbf94e3130867b692dd82eee87520ab422ef1"
+      },
       "printer": "debgotwired",
       "printer_name": "Deb Mukherjee",
       "creator": {
@@ -11436,9 +11496,9 @@
       "path": "library/project-management/plane",
       "release": {
         "cli_name": "plane-pp-cli",
-        "version": "2026.6.3",
-        "released_at": "2026-06-25T07:26:55Z",
-        "source_commit": "be3d60fb932b6e9b51c6ff9b8b933feaa454f816"
+        "version": "2026.6.4",
+        "released_at": "2026-06-25T07:38:56Z",
+        "source_commit": "d4528fd340fe3768fcb6cc47e3bff8867d59c815"
       },
       "printer": "sidorovanthon",
       "printer_name": "Anton Sidorov aka anticodeguy",
