@@ -2,6 +2,10 @@
 
 This file is maintained by printing-press-library release automation. Do not hand-edit release sections in normal PRs.
 
+## 2026.6.7 - 2026-06-26
+
+- fix(flight-goat): harden google flights fallback (#1368).
+
 ## 2026.6.6 - 2026-06-26
 
 - fix(flight-goat): restore compact blocked fallback (#1367).
