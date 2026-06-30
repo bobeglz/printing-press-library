@@ -7768,6 +7768,12 @@
         "Mechanically scan HTML for leaked secrets and PII before it becomes a public, permanent URL."
       ],
       "path": "library/cloud/ht-ml",
+      "release": {
+        "cli_name": "ht-ml-pp-cli",
+        "version": "2026.6.1",
+        "released_at": "2026-06-27T19:26:05Z",
+        "source_commit": "bdea800bf4b61c6c7276e6f0bf3c339e9c444393"
+      },
       "printer": "bobeglz",
       "printer_name": "bobe",
       "creator": {
@@ -13549,45 +13555,31 @@
         "scrape-creators",
         "Scrape Creators",
         "scrape-creators-pp-cli",
+        "Every Scrape Creators endpoint across 28 platforms, plus a local store with offline transcript search, cross-platform joins, and ad-library diffing no other Scrape Creators tool ships.",
         "Cross-platform presence matrix",
         "creator find",
-        "Given a single handle, see which of 11+ platforms the creator is on, with follower counts side-by-side.",
-        "Trend triangulation across platforms",
-        "trends triangulate",
-        "Snapshot a hashtag or keyword on TikTok, YouTube, Reddit, and Threads in one call to see which platform it's rising fastest on.",
-        "Transcript full-text search across 5 platforms",
-        "transcripts search",
-        "FTS5-indexed search across all transcripts you've synced — TikTok, YouTube, Instagram, Facebook, and Twitter videos.",
-        "Ad library unified search",
-        "ads search",
-        "Search Facebook, Google, and LinkedIn ad libraries in one query — see every ad a brand is currently running.",
-        "Engagement spike detector",
-        "content spikes",
-        "Find videos that performed significantly above a creator's average — the ones that actually went viral.",
+        "Given one handle, see which of 12 creator platforms (TikTok, Instagram, YouTube, Twitter, Threads, Bluesky, Pinterest, Twitch, TruthSocial, Snapchat, Kwai, GitHub) the handle exists on, with follower counts side-by-side.",
         "Multi-creator comparison",
         "creator compare",
-        "Compare two or more creators side-by-side on follower count, engagement rate, posting cadence, and content volume.",
+        "Compare two or more creators side-by-side on follower count, engagement rate, and content volume.",
+        "Engagement spike detector",
+        "content spikes",
+        "Surface the videos that performed far above a creator's own baseline — the ones that actually went viral.",
+        "Transcript full-text search",
+        "transcripts search",
+        "FTS5 full-text search across every transcript you've synced — YouTube, TikTok, Instagram, Facebook, LinkedIn, and Rumble.",
+        "Trend triangulation",
+        "trends triangulate",
+        "Snapshot a hashtag or topic across platforms in one call to see which platform it's rising fastest on.",
         "Follower growth tracker",
         "creator track",
-        "Snapshot a creator's follower count daily across every platform; chart their growth trajectory over time.",
-        "Content cadence analysis",
-        "content cadence",
-        "See when a creator posts — by day of week and hour — across every platform you've synced for them.",
-        "Engagement rate ranker",
-        "content analyze",
-        "Rank a creator's synced content by engagement rate (not raw likes) so you see their true best performers.",
-        "Trend delta tracker",
-        "trends delta",
-        "Track whether a hashtag is growing or shrinking by comparing video counts across snapshot intervals.",
+        "Append a follower snapshot per run across every synced platform, then read the growth trajectory over time.",
         "Brand ad campaign monitor",
         "ads monitor",
-        "Snapshot a brand's ads on Facebook, Google, and LinkedIn into SQLite; on rerun, diff new ads vs ones that disappeared.",
-        "Link-in-bio universal resolver",
-        "bio resolve",
-        "Paste any linktree.ee, komi.io, pillar.io, linkbio, or linkme URL and get the unified destination list.",
-        "Credit burn rate monitor",
+        "Snapshot a brand's live ads across Facebook, TikTok, Google, and LinkedIn ad libraries; on rerun, diff new ads vs. ones that disappeared.",
+        "Credit burn projection",
         "account budget",
-        "See how fast you're spending API credits and how many days remain at current pace, fused with the API's own usage history."
+        "See how fast you're spending API credits and how many days remain at the current pace, computed from the API's credit balance and daily usage history."
       ],
       "path": "library/developer-tools/scrape-creators",
       "release": {
@@ -13602,16 +13594,23 @@
         "handle": "adrianhorning08",
         "name": "Adrian Horning"
       },
+      "contributors": [
+        {
+          "handle": "tmchow",
+          "name": "Trevin Chow"
+        }
+      ],
       "mcp": {
         "binary": "scrape-creators-pp-mcp",
         "transports": [
-          "stdio"
+          "stdio",
+          "http"
         ],
-        "tool_count": 114,
+        "tool_count": 164,
         "public_tool_count": 0,
         "auth_type": "api_key",
         "env_vars": [
-          "SCRAPE_CREATORS_API_KEY_AUTH"
+          "SCRAPECREATORS_API_KEY"
         ],
         "mcp_ready": "full",
         "spec_format": "openapi3"
