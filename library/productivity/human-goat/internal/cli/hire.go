@@ -8,6 +8,7 @@ package cli
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"sort"
 	"strconv"
 	"strings"
@@ -134,15 +135,17 @@ func newNovelHireCmd(flags *rootFlags) *cobra.Command {
 			allInHourly := pricing.AllIn(best.PosterHourlyRateCents, flagState).AllInCents
 			// Estimate the booking total from the actual slot duration rather than a
 			// flat 2-hour guess, so the spend cap does not reject in-budget bookings.
-			// Floor at 1 hour, and honor the Tasker's 2-hour minimum when it applies.
-			estHours := durationSeconds / 3600
+			// Use float hours so a fractional slot (e.g. 1.5h) is not truncated by
+			// integer division, floor at 1 hour, honor the Tasker's 2-hour minimum,
+			// and round the estimate UP so the cap never underestimates the charge.
+			estHours := float64(durationSeconds) / 3600.0
 			if estHours < 1 {
 				estHours = 1
 			}
 			if taskerRequiresTwoHourMinimum(best) && estHours < 2 {
 				estHours = 2
 			}
-			totalCents := allInHourly * estHours
+			totalCents := int(math.Ceil(float64(allInHourly) * estHours))
 			withinCap := maxTotal == 0 || float64(totalCents)/100.0 <= maxTotal
 			if maxTotal > 0 && !withinCap {
 				fmt.Fprintf(cmd.ErrOrStderr(), "refusing: all-in total %s exceeds cap %s\n", pricing.FormatCents(totalCents), formatDollarCap(maxTotal))

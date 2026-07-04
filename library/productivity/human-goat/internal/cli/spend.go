@@ -24,6 +24,7 @@ import (
 
 func newNovelSpendCmd(flags *rootFlags) *cobra.Command {
 	var flagBy string
+	var flagState string
 	var dbPath string
 
 	cmd := &cobra.Command{
@@ -93,7 +94,7 @@ func newNovelSpendCmd(flags *rootFlags) *cobra.Command {
 				return fmt.Errorf("close local spend rows: %w", err)
 			}
 
-			out := aggregateSpendRows(resourceRows, flagBy)
+			out := aggregateSpendRows(resourceRows, flagBy, flagState)
 			if flags.asJSON || flags.agent {
 				return printJSONFiltered(cmd.OutOrStdout(), out, flags)
 			}
@@ -111,6 +112,7 @@ func newNovelSpendCmd(flags *rootFlags) *cobra.Command {
 		},
 	}
 	cmd.Flags().StringVar(&flagBy, "by", "source", "Aggregate by source, category, tasker, or month")
+	cmd.Flags().StringVar(&flagState, "state", "", "State for CA/MA service-fee-only pricing when estimating TaskRabbit all-in totals")
 	cmd.Flags().StringVar(&dbPath, "db", "", "SQLite database file path (default: resolved data directory data.db)")
 	return cmd
 }
@@ -127,7 +129,7 @@ type spendOutputRow struct {
 	TotalCents int    `json:"total_cents"`
 }
 
-func aggregateSpendRows(rows []spendResourceRow, by string) []spendOutputRow {
+func aggregateSpendRows(rows []spendResourceRow, by, state string) []spendOutputRow {
 	type aggregate struct {
 		count      int
 		totalCents int
@@ -141,7 +143,7 @@ func aggregateSpendRows(rows []spendResourceRow, by string) []spendOutputRow {
 		}
 		agg := aggregates[group]
 		agg.count++
-		if cents, ok := spendAmountCentsForRow(row, decoded); ok {
+		if cents, ok := spendAmountCentsForRow(row, decoded, state); ok {
 			agg.totalCents += cents
 		}
 		aggregates[group] = agg
@@ -253,13 +255,13 @@ func spendStringValue(value any) string {
 // does it estimate a TaskRabbit booking's all-in total: base hourly rate ->
 // all-in fee transform -> multiplied by the booked duration (so multi-hour
 // bookings are not counted at a single hour).
-func spendAmountCentsForRow(row spendResourceRow, decoded any) (int, bool) {
+func spendAmountCentsForRow(row spendResourceRow, decoded any, state string) (int, bool) {
 	if cents, ok := findSpendAmountCents(decoded); ok {
 		return cents, true
 	}
 	if row.ResourceType != "magic" {
 		if base, ok := findPosterHourlyRateCents(decoded); ok {
-			allInHourly := pricing.AllIn(base, "").AllInCents
+			allInHourly := pricing.AllIn(base, state).AllInCents
 			hours := findBookingHours(decoded)
 			return int(math.Round(float64(allInHourly) * hours)), true
 		}
