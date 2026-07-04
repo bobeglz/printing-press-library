@@ -131,6 +131,12 @@ func newNovelHireCmd(flags *rootFlags) *cobra.Command {
 			if availabilityNote != "" {
 				notes = append(notes, availabilityNote)
 			}
+			// firstTaskRabbitSlot silently falls back to another day when the
+			// requested date has no availability; warn in the preview too so the
+			// dry-run summary never hides a date substitution before checkout.
+			if slotDate != "" && date != "" && slotDate != date {
+				notes = append(notes, fmt.Sprintf("requested %s was unavailable; would use %s instead", date, slotDate))
+			}
 
 			allInHourly := pricing.AllIn(best.PosterHourlyRateCents, flagState).AllInCents
 			// Estimate the booking total from the actual slot duration rather than a

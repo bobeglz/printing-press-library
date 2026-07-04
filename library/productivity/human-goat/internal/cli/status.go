@@ -27,9 +27,8 @@ func newNovelStatusCmd(flags *rootFlags) *cobra.Command {
 		Example:     "  human-goat-pp-cli status --open --agent",
 		Annotations: map[string]string{"mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if len(args) == 0 && !commandHasChangedFlags(cmd) {
-				return cmd.Help()
-			}
+			// status takes no required flags or args — a bare `status` is its
+			// primary use, so it must execute rather than print help by default.
 			if dryRunOK(flags) {
 				fmt.Fprintln(cmd.OutOrStdout(), "would list in-flight tasks across sources")
 				return nil
