@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/productivity/human-goat/internal/client"
 	"github.com/mvanhorn/printing-press-library/library/productivity/human-goat/internal/cliutil"
@@ -66,10 +67,12 @@ func newNovelCancelCmd(flags *rootFlags) *cobra.Command {
 				return classifyAPIError(fmt.Errorf("cancel: look up booking %d: %w", jobID, err), flags)
 			}
 			var rabbitID int
+			var appointment string
 			var found bool
 			for _, b := range active {
 				if b.JobID == jobID {
 					rabbitID = b.RabbitID
+					appointment = b.Appointment
 					found = true
 					break
 				}
@@ -110,7 +113,7 @@ func newNovelCancelCmd(flags *rootFlags) *cobra.Command {
 				result.Note = joinNotes(result.Note, "WARNING: booking still appears active after cancel; verify in the app")
 			} else {
 				result.VerifiedStatus = "cancelled"
-				result.Note = joinNotes(result.Note, "verified: booking no longer active; deposit refundable if cancelled >=24h before the appointment")
+				result.Note = joinNotes(result.Note, "verified: booking no longer active", refundStatusNote(appointment))
 			}
 			return printCancelResult(cmd, flags, result)
 		},
@@ -189,4 +192,32 @@ func printCancelResult(cmd *cobra.Command, flags *rootFlags, result cancelResult
 		rows = append(rows, []string{"Note", result.Note})
 	}
 	return flags.printTable(cmd, []string{"FIELD", "VALUE"}, rows)
+}
+
+// refundStatusNote reports the deposit-refund situation from the appointment
+// time relative to now instead of unconditionally claiming a refund. When the
+// appointment time cannot be parsed it stays neutral rather than over-promising.
+func refundStatusNote(appointment string) string {
+	appt, ok := parseAppointmentTime(appointment)
+	if !ok {
+		return "deposit refund depends on the 24h cancellation window; verify in the app"
+	}
+	if time.Until(appt) >= 24*time.Hour {
+		return "cancelled >=24h before the appointment; deposit is refundable"
+	}
+	return "cancelled within 24h of the appointment; deposit may be forfeited"
+}
+
+// parseAppointmentTime tolerates the common timestamp shapes TaskRabbit returns.
+func parseAppointmentTime(s string) (time.Time, bool) {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return time.Time{}, false
+	}
+	for _, layout := range []string{time.RFC3339Nano, time.RFC3339, "2006-01-02T15:04:05", "2006-01-02 15:04:05", "2006-01-02"} {
+		if t, err := time.Parse(layout, s); err == nil {
+			return t, true
+		}
+	}
+	return time.Time{}, false
 }

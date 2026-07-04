@@ -172,6 +172,13 @@ func newNovelHireCmd(flags *rootFlags) *cobra.Command {
 				return printHireConfirmSummary(cmd, flags, summary)
 			}
 
+			// firstTaskRabbitSlot only sets availabilityNote when no day had any
+			// open slot (it then fabricates a 1-hour placeholder). Never commit a
+			// real checkout against a slot the Schedule API did not actually offer.
+			if availabilityNote != "" {
+				return fmt.Errorf("no available slot for %q around %s; not booking (try a different date)", query, date)
+			}
+
 			if recommendationID == "" {
 				return fmt.Errorf("TaskRabbit recommendations response did not include recommendation_id")
 			}
