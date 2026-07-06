@@ -145,8 +145,9 @@ func setBestWeekday(view *statsView, totals map[time.Weekday]float64, counts map
 		avg := totals[day] / float64(counts[day])
 		if view.BestWeekday == "" || avg < bestAvg {
 			bestAvg = avg
+			dayAvg := avg
 			view.BestWeekday = day.String()
-			view.BestWeekdayAvg = &bestAvg
+			view.BestWeekdayAvg = &dayAvg
 		}
 	}
 }

@@ -62,9 +62,6 @@ func newNovelDriftCmd(flags *rootFlags) *cobra.Command {
 			if err != nil {
 				return usageErr(err)
 			}
-			if !cmd.Flags().Changed("db") {
-				dbPath = defaultDBPath("ticketdata-pp-cli")
-			}
 			db, err := store.OpenWithContext(cmd.Context(), dbPath)
 			if err != nil {
 				return err

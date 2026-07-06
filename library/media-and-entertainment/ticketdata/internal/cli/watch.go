@@ -50,7 +50,7 @@ func newWatchAddCmd(flags *rootFlags, dbPath *string) *cobra.Command {
 		Use:         "add <event-id...>",
 		Short:       "Add events to the local watchlist",
 		Example:     "  ticketdata-pp-cli watch add 22323960\n  ticketdata-pp-cli watch add 22323960 855396 --agent",
-		Annotations: map[string]string{"mcp:read-only": "true", "pp:happy-args": "22323960"},
+		Annotations: map[string]string{"mcp:local-write": "true", "pp:happy-args": "22323960"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 && commandNFlag(cmd) == 0 {
 				return cmd.Help()
@@ -181,7 +181,7 @@ func newWatchRemoveCmd(flags *rootFlags, dbPath *string) *cobra.Command {
 		Use:         "rm <event-id...>",
 		Short:       "Remove events from the local watchlist",
 		Example:     "  ticketdata-pp-cli watch rm 22323960\n  ticketdata-pp-cli watch rm 22323960 855396",
-		Annotations: map[string]string{"mcp:read-only": "true", "pp:happy-args": "22323960"},
+		Annotations: map[string]string{"mcp:local-write": "true", "pp:happy-args": "22323960"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if len(args) == 0 && commandNFlag(cmd) == 0 {
 				return cmd.Help()
