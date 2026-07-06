@@ -75,7 +75,7 @@ resources:
         response_path: data
       search:
         method: GET
-        path: "/performers/search"
+        path: "/autocomplete/suggestions"
         description: "Resolve a search query to the best-matching performer"
         params:
           - name: q
@@ -106,7 +106,7 @@ resources:
         response_path: data
       search:
         method: GET
-        path: "/venues/search"
+        path: "/autocomplete/suggestions"
         description: "Resolve a search query to the best-matching venue"
         params:
           - name: q

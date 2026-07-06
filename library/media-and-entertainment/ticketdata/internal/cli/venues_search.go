@@ -16,10 +16,10 @@ func newVenuesSearchCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "search",
-		Short: "Resolve a search query to the best-matching venue",
+		Short: "Search venues by name (multi-result autocomplete)",
 		// TODO: replace placeholder example values before relying on this for live dogfood.
 		Example:     "  ticketdata-pp-cli venues search --query example-value",
-		Annotations: map[string]string{"pp:endpoint": "venues.search", "pp:method": "GET", "pp:path": "/venues/search", "mcp:read-only": "true"},
+		Annotations: map[string]string{"pp:endpoint": "venues.search", "pp:method": "GET", "pp:path": "/autocomplete/suggestions", "mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Bare invocation of a command with required input prints help
 			// instead of pflag's terse "required flag not set" error. Optional-
@@ -30,7 +30,7 @@ func newVenuesSearchCmd(flags *rootFlags) *cobra.Command {
 			if !(cmd.Flags().Changed("query") || cmd.Flags().Changed("q")) && !flags.dryRun {
 				return fmt.Errorf("required flag \"%s\" not set", "query")
 			}
-			path := "/venues/search"
+			path := "/autocomplete/suggestions"
 			c, err := flags.newClient()
 			if err != nil {
 				return err
@@ -39,7 +39,7 @@ func newVenuesSearchCmd(flags *rootFlags) *cobra.Command {
 			if flagQ != "" {
 				params["q"] = formatCLIParamValue(flagQ)
 			}
-			data, prov, err := resolveReadWithStrategyAndResponsePath(cmd.Context(), c, flags, "auto", "venues", false, path, params, nil, "data", cmd.ErrOrStderr())
+			data, prov, err := resolveReadWithStrategyAndResponsePath(cmd.Context(), c, flags, "auto", "venues", false, path, params, nil, "data.venues", cmd.ErrOrStderr())
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}

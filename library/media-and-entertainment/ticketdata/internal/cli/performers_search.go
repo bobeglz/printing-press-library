@@ -16,9 +16,9 @@ func newPerformersSearchCmd(flags *rootFlags) *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:         "search",
-		Short:       "Resolve a search query to the best-matching performer",
+		Short:       "Search performers by name (multi-result autocomplete)",
 		Example:     "  ticketdata-pp-cli performers search --query \"ariana grande\"",
-		Annotations: map[string]string{"pp:endpoint": "performers.search", "pp:method": "GET", "pp:path": "/performers/search", "mcp:read-only": "true"},
+		Annotations: map[string]string{"pp:endpoint": "performers.search", "pp:method": "GET", "pp:path": "/autocomplete/suggestions", "mcp:read-only": "true"},
 		RunE: func(cmd *cobra.Command, args []string) error {
 			// Bare invocation of a command with required input prints help
 			// instead of pflag's terse "required flag not set" error. Optional-
@@ -29,7 +29,7 @@ func newPerformersSearchCmd(flags *rootFlags) *cobra.Command {
 			if !(cmd.Flags().Changed("query") || cmd.Flags().Changed("q")) && !flags.dryRun {
 				return fmt.Errorf("required flag \"%s\" not set", "query")
 			}
-			path := "/performers/search"
+			path := "/autocomplete/suggestions"
 			c, err := flags.newClient()
 			if err != nil {
 				return err
@@ -38,7 +38,7 @@ func newPerformersSearchCmd(flags *rootFlags) *cobra.Command {
 			if flagQ != "" {
 				params["q"] = formatCLIParamValue(flagQ)
 			}
-			data, prov, err := resolveReadWithStrategyAndResponsePath(cmd.Context(), c, flags, "auto", "performers", false, path, params, nil, "data", cmd.ErrOrStderr())
+			data, prov, err := resolveReadWithStrategyAndResponsePath(cmd.Context(), c, flags, "auto", "performers", false, path, params, nil, "data.performers", cmd.ErrOrStderr())
 			if err != nil {
 				return classifyAPIError(err, flags)
 			}
