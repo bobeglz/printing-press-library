@@ -308,7 +308,13 @@ func (c *Client) ChromeAvailability(
 	harvested := cap.reqHash
 	cap.mu.Unlock()
 	if harvested != "" && harvested != currentAvailabilityHash() {
-		_ = savePersistedAvailabilityHash(harvested)
+		if err := savePersistedAvailabilityHash(harvested); err != nil {
+			// Best-effort: the harvest still helped this call, but a failed
+			// persist means the next 409 re-spawns Chrome instead of reusing
+			// the value. Surface it so a read-only/mis-configured cache dir is
+			// diagnosable rather than silently degrading.
+			fmt.Fprintf(os.Stderr, "opentable chrome: could not persist harvested availability hash: %v\n", err)
+		}
 	}
 
 	if runErr != nil {
