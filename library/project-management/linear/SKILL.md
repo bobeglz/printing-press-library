@@ -312,6 +312,14 @@ These capabilities aren't available in any other tool for this API.
 
 - `linear-pp-cli project-statuses <id>` — Get a single projectstatus
 
+**project-updates** — Create and list Linear project updates (status posts on a project)
+
+- `linear-pp-cli project-updates list --project <uuid> --agent` — List project updates for a project
+- `linear-pp-cli project-updates list --project-name "My Project" --limit 10 --agent` — List updates by project name
+- `linear-pp-cli project-updates create --project <uuid> --body-file /tmp/update.md --health onTrack --agent` — Post a project update with markdown body
+- `linear-pp-cli project-updates create --project-name "My Project" --body "Sprint on track." --health onTrack --agent` — Post update by project name
+- `linear-pp-cli project-updates create --project <uuid> --body-stdin --health atRisk --agent < /tmp/update.md` — Post update from stdin
+
 **projects** — Manage projects
 
 - `linear-pp-cli projects <id>` — Get a single project
