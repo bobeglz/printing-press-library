@@ -150,7 +150,7 @@ clicks as possible. Aliased as "book".`,
 			if err != nil {
 				return classifyVagaroError(err, flags)
 			}
-			open, sameDay := slotOpen(groups, at, timeLabel)
+			open, sameDay := slotOpen(groups, at, timeLabel, provider)
 
 			res := bookResult{
 				Slug:          slug,
@@ -215,16 +215,25 @@ func placeBooking(cmd *cobra.Command, flags *rootFlags, res bookResult) error {
 // slotOpen reports whether the requested datetime appears in the availability
 // groups. Also returns the times open on that same day for a helpful hint when
 // the exact slot is taken.
-func slotOpen(groups []vagaro.SlotGroup, at time.Time, timeLabel string) (bool, []string) {
+func slotOpen(groups []vagaro.SlotGroup, at time.Time, timeLabel, wantProvider string) (bool, []string) {
 	// Compare as naive wall-clock: the requested --at and Vagaro's slot labels
 	// are both business-local wall-clock strings, so match on year/month/day/
 	// hour/minute components rather than as absolute instants that could differ
 	// by zone. at.Year()/at.Hour()/etc. read the wall-clock in at's own zone.
 	wantY, wantMo, wantD := at.Date()
 	wantH, wantMin := at.Hour(), at.Minute()
+	wantProvider = strings.TrimSpace(wantProvider)
 	sameDay := make([]string, 0)
 	open := false
 	for _, g := range groups {
+		// Respect per-slot provider attribution: when booking a specific
+		// provider, never treat a group explicitly attributed to a DIFFERENT
+		// provider as availability for the requested one. Unattributed groups
+		// (empty ProviderID) are accepted because the availability call is
+		// already scoped to the requested provider.
+		if wantProvider != "" && g.ProviderID != "" && g.ProviderID != wantProvider {
+			continue
+		}
 		for _, t := range g.Times {
 			dt, ok := vagaro.ParseSlotDateTime(g.Date, t)
 			if !ok {

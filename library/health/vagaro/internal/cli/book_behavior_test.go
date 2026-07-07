@@ -17,19 +17,19 @@ func TestSlotOpen(t *testing.T) {
 		{Date: "25 Jul 2026", Provider: "Ronnel", Times: []string{"09:00 AM"}},
 	}
 	at := time.Date(2026, 7, 24, 10, 0, 0, 0, time.UTC)
-	open, sameDay := slotOpen(groups, at, "10:00 AM")
+	open, sameDay := slotOpen(groups, at, "10:00 AM", "")
 	assert.True(t, open)
 	assert.Equal(t, []string{"10:00 AM", "10:15 AM"}, sameDay)
 
 	// Requested time not present that day.
 	at2 := time.Date(2026, 7, 24, 12, 30, 0, 0, time.UTC)
-	open2, sameDay2 := slotOpen(groups, at2, "12:30 PM")
+	open2, sameDay2 := slotOpen(groups, at2, "12:30 PM", "")
 	assert.False(t, open2)
 	assert.Equal(t, []string{"10:00 AM", "10:15 AM"}, sameDay2)
 
 	// Different day, no match.
 	at3 := time.Date(2026, 7, 26, 10, 0, 0, 0, time.UTC)
-	open3, _ := slotOpen(groups, at3, "10:00 AM")
+	open3, _ := slotOpen(groups, at3, "10:00 AM", "")
 	assert.False(t, open3)
 }
 
@@ -37,7 +37,7 @@ func TestSlotOpen_datelessFallback(t *testing.T) {
 	// HTML-fragment fallback groups carry no date; match on the clock label.
 	groups := []vagaro.SlotGroup{{Times: []string{"10:00 AM", "1:15 PM"}}}
 	at := time.Date(2026, 7, 24, 10, 0, 0, 0, time.UTC)
-	open, _ := slotOpen(groups, at, "10:00 AM")
+	open, _ := slotOpen(groups, at, "10:00 AM", "")
 	assert.True(t, open)
 }
 
@@ -72,3 +72,29 @@ type writerBuf struct{ b []byte }
 
 func (w *writerBuf) Write(p []byte) (int, error) { w.b = append(w.b, p...); return len(p), nil }
 func (w *writerBuf) String() string              { return string(w.b) }
+
+// TestSlotOpenProviderAttribution verifies that a slot group explicitly
+// attributed to a different provider is not treated as availability for the
+// requested provider (regression for the "Fallback Loses Providers" finding),
+// while unattributed groups remain matchable for a provider-scoped call.
+func TestSlotOpenProviderAttribution(t *testing.T) {
+	at, _ := time.ParseInLocation(atLayout, "2026-07-24T10:00", time.UTC)
+
+	// A group attributed to provider B must NOT satisfy a request for provider A.
+	otherProvider := []vagaro.SlotGroup{{Date: "24 Jul 2026", ProviderID: "B", Times: []string{"10:00 AM"}}}
+	if open, _ := slotOpen(otherProvider, at, "10:00 AM", "A"); open {
+		t.Fatalf("slot attributed to provider B matched a request for provider A")
+	}
+
+	// The same group DOES satisfy a request for provider B.
+	if open, _ := slotOpen(otherProvider, at, "10:00 AM", "B"); !open {
+		t.Fatalf("slot attributed to provider B did not match a request for provider B")
+	}
+
+	// An unattributed group (empty ProviderID) is matchable for a provider-scoped
+	// call, because the availability request was already scoped to that provider.
+	unattributed := []vagaro.SlotGroup{{Date: "24 Jul 2026", Times: []string{"10:00 AM"}}}
+	if open, _ := slotOpen(unattributed, at, "10:00 AM", "A"); !open {
+		t.Fatalf("unattributed slot did not match a provider-scoped request")
+	}
+}
