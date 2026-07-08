@@ -14,9 +14,9 @@ Detection strategy:
     flow-sequence triggers, block-scalar `ref: >-` with the value on the
     next line) and required a patch per quirk. Structural parsing
     eliminates the whole class.
-  - R3 (go.mod replace) and R6 (module-path drift) operate on go.mod
+  - R3 (go.mod replace), R7 (library Go floor), and R8 (module-path drift) operate on go.mod
     files; a regex-on-text approach is appropriate there.
-  - R5 (npm lifecycle scripts) parses npm/package.json as JSON and
+  - R6 (npm lifecycle scripts) parses npm/package.json as JSON and
     compares head vs base script tables.
 """
 
@@ -292,8 +292,8 @@ def _walk_setup_go_version_literals(parsed: Any) -> list[str]:
             if not isinstance(with_block, dict):
                 continue
             version = with_block.get("go-version")
-            if isinstance(version, str):
-                found.append(version.strip())
+            if version is not None:
+                found.append(str(version).strip())
     return found
 
 
@@ -682,7 +682,7 @@ _WATCHED_NPM_SCRIPTS = ("preinstall", "postinstall", "prepare")
 
 
 def signal_npm_lifecycle_script(change: FileChange) -> list[Finding]:
-    """R5. Adding postinstall / preinstall / prepare to npm/package.json is
+    """R6. Adding postinstall / preinstall / prepare to npm/package.json is
     the Axios attack shape: the lifecycle hook fires on every `npm install`
     or `npx` invocation and runs attacker code in user shells.
     """
