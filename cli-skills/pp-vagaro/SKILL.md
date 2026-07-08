@@ -111,12 +111,19 @@ These capabilities aren't available in any other tool for this API.
   ```bash
   vagaro-pp-cli watch centralbarber --service haircut --before 2026-07-05 --agent
   ```
+- **`business availability`** — Query one known business for available slots, scoped to a service, provider, and date range.
+
+  _Use when the user already knows the business and needs a precise provider/service/window answer._
+
+  ```bash
+  vagaro-pp-cli business availability sample-shop --service haircut --provider alex --from 2026-07-20 --to 2026-07-31 --agent
+  ```
 
 ## Command Reference
 
 **business** — Look up a Vagaro business (salon/spa/barber/fitness) by its slug
 
-- `vagaro-pp-cli business availability` — Get a business's next-available booking summary
+- `vagaro-pp-cli business availability` — Get a business's next-available booking summary; supports `--service <name-or-id>`, `--provider <name-or-id>`, `--from <date>`, `--to <date>`, and `--weeks <n>`
 - `vagaro-pp-cli business get` — Get a business profile (name, rating, address, categories)
 - `vagaro-pp-cli business services` — List a business's services with prices and durations
 
