@@ -2,16 +2,17 @@
   "schema_version": 1,
   "slug": "flight-goat",
   "cli_name": "flight-goat-pp-cli",
-  "version": "2026.7.2",
-  "released_at": "2026-07-10T05:42:37Z",
-  "source_commit": "64702c4716584fe5c16bc438a5bc204803347b73",
-  "printing_press_version": "3.6.0",
+  "version": "2026.7.3",
+  "released_at": "2026-07-13T08:32:42Z",
+  "source_commit": "ceca5e2352dee41e4ad77ceb1428e283dd0bb29b",
+  "printing_press_version": "4.28.0",
+  "run_id": "20260712-220852",
   "changes": [
     {
-      "title": "feat(cli): add FlySoar (Soar) price source + booking handoff to flight-goat",
-      "pr": 1445,
-      "url": "https://github.com/mvanhorn/printing-press-library/pull/1445",
-      "commit": "64702c4716584fe5c16bc438a5bc204803347b73"
+      "title": "feat(flight-goat): add flight-goat",
+      "pr": 1509,
+      "url": "https://github.com/mvanhorn/printing-press-library/pull/1509",
+      "commit": "ceca5e2352dee41e4ad77ceb1428e283dd0bb29b"
     }
   ]
 }

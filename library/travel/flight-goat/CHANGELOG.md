@@ -2,6 +2,10 @@
 
 This file is maintained by printing-press-library release automation. Do not hand-edit release sections in normal PRs.
 
+## 2026.7.3 - 2026-07-13
+
+- feat(flight-goat): add flight-goat (#1509).
+
 ## 2026.7.2 - 2026-07-10
 
 - feat(cli): add FlySoar (Soar) price source + booking handoff to flight-goat (#1445).
