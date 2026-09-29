@@ -500,7 +500,7 @@ func paginatedGet(ctx context.Context, c interface {
 	allItems := make([]json.RawMessage, 0)
 	page := 0
 	paginationSignalFound := nextCursorPath != "" || hasMoreField != ""
-	// PATCH(meta-graph-cursor-pagination): a walk that stops on a truncation
+	// PATCH(meta-graph-follow-paging-next): a walk that stops on a truncation
 	// warning must not also report {"event":"complete"}.
 	truncated := false
 	for {
@@ -530,7 +530,7 @@ func paginatedGet(ctx context.Context, c interface {
 
 				activeCursorParam := cursorParam
 				activeNextCursorPath := nextCursorPath
-				// PATCH(meta-graph-cursor-pagination): Meta's endpoint metadata omits
+				// PATCH(meta-graph-follow-paging-next): Meta's endpoint metadata omits
 				// pagination even though every Graph list response uses this envelope.
 				// Auto-detect it so --all follows the documented Graph link: more pages
 				// exist exactly while paging.next is present, and paging.cursors.after
@@ -547,7 +547,7 @@ func paginatedGet(ctx context.Context, c interface {
 				if activeNextCursorPath != "" {
 					if tokenRaw, ok := rawAtPath(obj, activeNextCursorPath); ok {
 						if token := paginationCursorToken(tokenRaw); token != "" {
-							// PATCH(meta-graph-cursor-pagination): a next-page URL
+							// PATCH(meta-graph-follow-paging-next): a next-page URL
 							// (Graph's paging.next) must be reduced to its cursor value.
 							if token = cursorTokenFromMaybeURL(token, activeCursorParam); token == "" {
 								emitMissingPaginationCursorWarning(activeNextCursorPath)
