@@ -6,10 +6,13 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 )
 
@@ -79,6 +82,62 @@ func TestMediaListAllFollowsGraphPagingNext(t *testing.T) {
 		if strings.Contains(r.URL.RawQuery, "from-next-url") || strings.Contains(r.Header.Get("Authorization"), "from-next-url") {
 			t.Fatalf("request %d replayed the token embedded in paging.next: %s", i+1, r.URL.String())
 		}
+	}
+}
+
+// TestMediaListAllCapDoesNotReportComplete drives `media list --all` against a
+// Graph fixture that always carries paging.next. The walk must stop at the
+// page cap with a max_pages_cap_hit truncation event and must not also emit
+// {"event":"complete"}, which would present the partial inventory as whole.
+func TestMediaListAllCapDoesNotReportComplete(t *testing.T) {
+	var requests atomic.Int64
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		n := requests.Add(1)
+		next := fmt.Sprintf("https://graph.facebook.com/v22.0/1784/media?limit=1&after=cursor-%d", n)
+		fmt.Fprintf(w, `{"data":[{"id":"m%d"}],"paging":{"cursors":{"after":"cursor-%d"},"next":%q}}`, n, n, next)
+	}))
+	defer srv.Close()
+
+	t.Setenv("HOME", t.TempDir())
+	t.Setenv("INSTAGRAM_BASE_URL", srv.URL)
+	t.Setenv("INSTAGRAM_ACCESS_TOKEN", "test-token")
+
+	// paginatedGet reports progress on os.Stderr, not the command's writer.
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	origStderr := os.Stderr
+	os.Stderr = w
+	stderrCh := make(chan string, 1)
+	go func() {
+		var buf bytes.Buffer
+		_, _ = io.Copy(&buf, r)
+		stderrCh <- buf.String()
+	}()
+
+	flags := &rootFlags{asJSON: true, noCache: true, dataSource: "live"}
+	cmd := newMediaListCmd(flags)
+	var out bytes.Buffer
+	cmd.SetOut(&out)
+	cmd.SetErr(&out)
+	cmd.SetArgs([]string{"1784", "--all", "--limit", "1", "--fields", "id"})
+	execErr := cmd.Execute()
+	os.Stderr = origStderr
+	_ = w.Close()
+	stderr := <-stderrCh
+	if execErr != nil {
+		t.Fatalf("media list --all: %v\noutput: %s", execErr, out.String())
+	}
+
+	if got := requests.Load(); got != paginatedGetMaxPages {
+		t.Fatalf("got %d requests, want %d (stop at the page cap)", got, paginatedGetMaxPages)
+	}
+	if !strings.Contains(stderr, `"reason":"max_pages_cap_hit"`) {
+		t.Fatalf("stderr lacks the max_pages_cap_hit truncation event:\n%s", stderr)
+	}
+	if strings.Contains(stderr, `"event":"complete"`) {
+		t.Fatalf("capped walk reported complete:\n%s", stderr)
 	}
 }
 

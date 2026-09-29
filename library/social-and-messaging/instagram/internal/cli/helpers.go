@@ -571,6 +571,9 @@ func paginatedGet(ctx context.Context, c interface {
 	// Fetch all pages
 	allItems := make([]json.RawMessage, 0)
 	page := 0
+	// PATCH(instagram-graph-cursor-pagination): a walk that stops on a
+	// truncation warning must not also report {"event":"complete"}.
+	truncated := false
 	for {
 		page++
 		if humanFriendly {
@@ -604,10 +607,12 @@ func paginatedGet(ctx context.Context, c interface {
 							// (Graph's paging.next) must be reduced to its cursor value.
 							if token = cursorTokenFromMaybeURL(token, cursorParam); token == "" {
 								emitMissingPaginationCursorWarning(nextCursorPath)
+								truncated = true
 								break
 							}
 							if page >= paginatedGetMaxPages {
 								emitPaginatedGetMaxPagesWarning()
+								truncated = true
 								break
 							}
 							clean[cursorParam] = token
@@ -625,12 +630,14 @@ func paginatedGet(ctx context.Context, c interface {
 							if next, ok := nextClientSidePaginationCursor(clean, cursorParam, paginationType, limitParam); ok {
 								if page >= paginatedGetMaxPages {
 									emitPaginatedGetMaxPagesWarning()
+									truncated = true
 									break
 								}
 								clean[cursorParam] = next
 								continue
 							}
 							emitMissingPaginationCursorWarning(nextCursorPath)
+							truncated = true
 							break
 						}
 					}
@@ -646,10 +653,11 @@ func paginatedGet(ctx context.Context, c interface {
 
 	if fetchAll && page == 1 && nextCursorPath == "" && hasMoreField == "" {
 		emitMissingPaginationSignalWarning()
+		truncated = true
 	}
 	if humanFriendly {
 		fmt.Fprintf(os.Stderr, "fetched %d items across %d pages\n", len(allItems), page)
-	} else {
+	} else if !truncated {
 		fmt.Fprintf(os.Stderr, `{"event":"complete","total":%d,"pages":%d}`+"\n", len(allItems), page)
 	}
 	result, _ := json.Marshal(allItems)
