@@ -600,6 +600,12 @@ func paginatedGet(ctx context.Context, c interface {
 				if nextCursorPath != "" {
 					if tokenRaw, ok := rawAtPath(obj, nextCursorPath); ok {
 						if token := paginationCursorToken(tokenRaw); token != "" {
+							// PATCH(instagram-graph-cursor-pagination): a next-page URL
+							// (Graph's paging.next) must be reduced to its cursor value.
+							if token = cursorTokenFromMaybeURL(token, cursorParam); token == "" {
+								emitMissingPaginationCursorWarning(nextCursorPath)
+								break
+							}
 							if page >= paginatedGetMaxPages {
 								emitPaginatedGetMaxPagesWarning()
 								break
@@ -766,6 +772,22 @@ func paginationCursorToken(raw json.RawMessage) string {
 		}
 	}
 	return ""
+}
+
+// cursorTokenFromMaybeURL passes plain cursor tokens through and reduces an
+// absolute next-page URL to the value of cursorParam in its query string, so
+// the next request carries the cursor rather than the whole URL (which, for
+// Graph, also embeds the access token). Returns "" when the URL has no usable
+// cursor.
+func cursorTokenFromMaybeURL(token, cursorParam string) string {
+	if !strings.HasPrefix(token, "https://") && !strings.HasPrefix(token, "http://") {
+		return token
+	}
+	u, err := url.Parse(token)
+	if err != nil || cursorParam == "" {
+		return ""
+	}
+	return u.Query().Get(cursorParam)
 }
 
 func extractPaginatedItems(obj map[string]json.RawMessage) ([]json.RawMessage, bool) {
