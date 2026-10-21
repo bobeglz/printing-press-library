@@ -32,6 +32,16 @@ func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[stri
 	var covered, last int64
 	var receipt int64
 	completedAttempts := map[int64]bool{}
+	// Index once, before reconciling completions, so linkage does not rescan
+	// the journal and remains independent of event ordering and filter count.
+	attempts := make(map[int64]map[string]any)
+	for _, event := range events {
+		if event["kind"] == "post_fields_attempt" {
+			if id, err := crocoInt(event["id"]); err == nil {
+				attempts[id] = event
+			}
+		}
+	}
 	for _, event := range events {
 		id, e := crocoInt(event["id"])
 		if e != nil {
@@ -51,11 +61,8 @@ func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[stri
 					return nil, nil, configErr(fmt.Errorf("invalid field completion intent"))
 				}
 				// A completion may only discharge the same resource and fields.
-				for _, intent := range events {
-					intentID, _ := crocoInt(intent["id"])
-					if intentID == start && intent["kind"] == "post_fields_attempt" && intent["resource"] == event["resource"] && reflect.DeepEqual(crocoEventFields(intent["fields"]), crocoEventFields(event["fields"])) {
-						completedAttempts[start] = true
-					}
+				if intent, ok := attempts[start]; ok && intent["resource"] == event["resource"] && reflect.DeepEqual(crocoEventFields(intent["fields"]), crocoEventFields(event["fields"])) {
+					completedAttempts[start] = true
 				}
 			}
 		}

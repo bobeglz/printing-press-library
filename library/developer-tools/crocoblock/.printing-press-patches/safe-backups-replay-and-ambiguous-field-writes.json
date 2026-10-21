@@ -12,6 +12,7 @@
     "internal/cli/croco_export_test.go",
     "internal/cli/croco_fields.go",
     "internal/cli/croco_fields_journal_test.go",
+    "internal/cli/croco_filter_impact_index_test.go",
     "internal/cli/croco_journal.go",
     "internal/cli/export.go",
     "internal/cli/filters_impact.go",
@@ -19,5 +20,5 @@
     "internal/cli/import_guard_test.go",
     "internal/cli/resource_paths.go"
   ],
-  "validated_outcome": "Regression coverage includes all four multi-page exports, backup preservation, committed HTTP 500 imports with configured idempotency keys, and field-intent impact after failed readback or snapshot finalization."
+  "validated_outcome": "Regression coverage includes all four multi-page exports, backup preservation, committed HTTP 500 imports with configured idempotency keys, and field-intent impact after failed readback or snapshot finalization. Intent reconciliation indexes 10,000 completion pairs in linear journal passes while retaining strict linkage and unknown-outcome checks."
 }

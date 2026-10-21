@@ -22,7 +22,7 @@
     "type": "api_key",
     "api_key_available": true
   },
-  "source_fingerprint": "4628f5e22950641cf59d7dd1ee2998353e2f43cc46f060ae3835e00ca557a560",
+  "source_fingerprint": "15c5862a43cd777554b6fa2ea6f1a727371f2795ee04a2b5be40cec84b986480",
   "source_files": {
     "cmd/crocoblock-pp-cli/main.go": "3dc0b051109d7b5e63d020c482dc4fecacd0ed3028cc09257cb4907294152dc4",
     "cmd/crocoblock-pp-mcp/main.go": "9022d545abac472ac1cea3d2ad2e954304e7be84f73c800843ca98c2431a4f92",
@@ -76,6 +76,7 @@
     "internal/cli/croco_fields_atomic_test.go": "e4c11d1a2b79d862926c5e8e8d6ed8074fe4d733551ba15ef29bf7f24529a765",
     "internal/cli/croco_fields_journal_test.go": "eb69049e5c36c41710979a6d13f5a7d1d366390010141a05da65f787bf4e0f5e",
     "internal/cli/croco_fields_test.go": "91f4fc2bc7539e21457c5eed79966b5ef5c856f54dd5563ff4c9db7e52feeea8",
+    "internal/cli/croco_filter_impact_index_test.go": "afbc3ba7150c348f279851f172008fe472dd292c4dba5c258fec9adf8fcdce48",
     "internal/cli/croco_filter_impact_test.go": "e3cf0bd89ea9fdbb70bede3653afb77559a16c912b53a29442a14412c2e2e72f",
     "internal/cli/croco_filters.go": "c785be74f64f9cb103336cdda21e9dfea7b49ebd26a65bd634984b18ff560277",
     "internal/cli/croco_filters_test.go": "63a30c4a16724e3b5307a4884906afe32ac663facbfe9de67aee7d643a026ab0",
@@ -125,7 +126,7 @@
     "internal/cli/filters-api_save.go": "161343213fe9b0b834700000d50b77e1b6bb4932e36706a67c3fc96f65967777",
     "internal/cli/filters-api_status.go": "004ccac0f7a62e252ac8c7ee65cf95a17cba3ad30321dc8a71f7e96ac461c9b9",
     "internal/cli/filters.go": "0ff801919269a9a85ddb10cdfc043bf7ed23a6f7d96d10ab586d72942abea296",
-    "internal/cli/filters_impact.go": "7ee6bafcd29a9fadc83e64f24cf0d6dabf52973b65c9711368cc488efd5d6a9c",
+    "internal/cli/filters_impact.go": "1c6b68a7a7af1c3d3868b4059f7b926d5200f60732b501fb13040fcaa8a84b7a",
     "internal/cli/filters_impact_test.go": "34d4702754e70c826c7466c30a6bed73ba222a6e3fa9f311beff4b0cbca8bbac",
     "internal/cli/forms-api.go": "761e47a0fe7b68c536ad461a78b0a620dd84a47e62bf1aa2f11e1e56c8e5c8ff",
     "internal/cli/forms-api_create.go": "2202fd9a0d9ad9aecacdaab3a8d920424dd52cbf455972221de7c497be561709",
