@@ -143,6 +143,10 @@ func init() {
 					}
 					defer file.Close()
 				}
+				attempt, e := crocoFieldWriteIntent(ctx, c, id, operation, keys)
+				if e != nil {
+					return nil, e
+				}
 				_, e = crocoRequest(ctx, c, "POST", schema.Route+"/"+id, nil, map[string]any{"meta": patch}, false)
 				if e != nil {
 					return nil, e
@@ -164,7 +168,7 @@ func init() {
 						return nil, apiErr(fmt.Errorf("mutation_applied: private snapshot finalization failed: %w", e))
 					}
 				}
-				if e = crocoJournal(f, ctx, c, "post_fields_write", "fields:"+id, keys, map[string]any{"id": id, "operation": operation, "verified": true}); e != nil {
+				if e = crocoJournal(f, ctx, c, "post_fields_write", "fields:"+id, keys, map[string]any{"id": id, "operation": operation, "verified": true, "start_event_id": attempt}); e != nil {
 					return nil, e
 				}
 				return map[string]any{"post_type": postType, "id": id, "changed_fields": keys, "verified": true, "snapshot": snapshot, "operation": operation}, nil

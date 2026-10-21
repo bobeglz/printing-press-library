@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/mvanhorn/printing-press-library/library/developer-tools/crocoblock/internal/store"
 	"github.com/spf13/cobra"
+	"reflect"
 	"regexp"
 	"strings"
 	"time"
@@ -30,6 +31,7 @@ func crocoEventFields(v any) []string {
 func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[string]any, since int64) ([]any, map[string]any, error) {
 	var covered, last int64
 	var receipt int64
+	completedAttempts := map[int64]bool{}
 	for _, event := range events {
 		id, e := crocoInt(event["id"])
 		if e != nil {
@@ -40,6 +42,22 @@ func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[stri
 		}
 		if crocoString(event["site"]) != cap.Site {
 			return nil, nil, configErr(fmt.Errorf("event and filter capture sites differ"))
+		}
+		if event["kind"] == "post_fields_write" {
+			d, _ := event["detail"].(map[string]any)
+			if d["verified"] == true && d["start_event_id"] != nil {
+				start, err := crocoInt(d["start_event_id"])
+				if err != nil || start <= 0 || start >= id {
+					return nil, nil, configErr(fmt.Errorf("invalid field completion intent"))
+				}
+				// A completion may only discharge the same resource and fields.
+				for _, intent := range events {
+					intentID, _ := crocoInt(intent["id"])
+					if intentID == start && intent["kind"] == "post_fields_attempt" && intent["resource"] == event["resource"] && reflect.DeepEqual(crocoEventFields(intent["fields"]), crocoEventFields(event["fields"])) {
+						completedAttempts[start] = true
+					}
+				}
+			}
 		}
 		if event["kind"] == "reindex" && event["resource"] == "filters" {
 			d, _ := event["detail"].(map[string]any)
@@ -111,6 +129,12 @@ func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[stri
 			if strings.HasPrefix(resource, "engine:") || strings.HasPrefix(resource, "cct:") {
 				unknown = append(unknown, eid)
 			}
+			if hit && event["kind"] == "post_fields_attempt" {
+				if !completedAttempts[eid] {
+					unknown = append(unknown, eid)
+				}
+				continue
+			}
 			if hit {
 				matches = append(matches, map[string]any{"event_id": eid, "resource": resource, "covered_by_receipt": eid <= covered})
 			}
@@ -132,7 +156,7 @@ func crocoComputeFilterImpact(cap store.CrocoCapture, filters, events []map[stri
 		}
 		if len(unknown) > 0 {
 			state = "unknown"
-			reason = "Recorded structural/provider changes or newer filter definitions need a fresh compatible capture"
+			reason = "Unverified field attempts, structural/provider changes, or newer filter definitions require inspection"
 		}
 		if crocoString(filter["status"]) != "publish" {
 			state = "inactive"

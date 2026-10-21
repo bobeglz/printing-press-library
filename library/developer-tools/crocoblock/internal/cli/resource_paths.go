@@ -44,10 +44,10 @@ var resourceWritePaths = map[string]string{ // #nosec G101 -- endpoint paths, no
 }
 
 var resourceReadConfigs = map[string]resourceReadConfig{
-	"appointments-api": {responsePath: "data", pageSize: 100},
-	"bookings-api":     {responsePath: "data", pageSize: 100},
-	"forms-api":        {responsePath: "", pageSize: 100},
-	"records-api":      {responsePath: "list", pageSize: 100},
+	"appointments-api": {responsePath: "data", paginationType: "offset", cursorParam: "offset", limitParam: "per_page", pageSize: 100},
+	"bookings-api":     {responsePath: "data", paginationType: "offset", cursorParam: "offset", limitParam: "per_page", pageSize: 100},
+	"forms-api":        {paginationType: "page", cursorParam: "page", limitParam: "per_page", pageSize: 100},
+	"records-api":      {responsePath: "list", paginationType: "page", cursorParam: "page", limitParam: "limit", pageSize: 100},
 }
 
 func resourceReadPath(resource string) (string, error) {

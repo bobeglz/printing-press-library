@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/mvanhorn/printing-press-library/library/developer-tools/crocoblock/internal/cliutil"
@@ -56,6 +55,16 @@ large datasets as it has no memory pressure.`,
 				return usageErr(fmt.Errorf("unknown resource %q; valid: %s", resource, strings.Join(validResourceList, ", ")))
 			}
 
+			if format != "json" && format != "jsonl" {
+				return usageErr(fmt.Errorf("unsupported export format %q; use json or jsonl", format))
+			}
+			if limit < 0 {
+				return usageErr(fmt.Errorf("export limit must be nonnegative"))
+			}
+			if dryRunOK(flags) {
+				return writeDryRun(cmd.OutOrStdout(), flags, cmd.CommandPath())
+			}
+
 			c, err := flags.newClient()
 			if err != nil {
 				return err
@@ -79,16 +88,18 @@ large datasets as it has no memory pressure.`,
 			var writer *bufio.Writer
 			var outFile *os.File
 			if outputFile != "" {
-				f, err := openExportOutput(outputFile)
+				f, err := stageExportOutput(outputFile)
 				if err != nil {
 					return err
 				}
 				outFile = f
 				writer = bufio.NewWriter(f)
+				stagedPath := f.Name()
 				defer func() {
-					if err != nil && outFile != nil {
+					if outFile != nil {
 						_ = outFile.Close()
 					}
+					_ = os.Remove(stagedPath)
 				}()
 			} else {
 				writer = bufio.NewWriter(os.Stdout)
@@ -98,80 +109,51 @@ large datasets as it has no memory pressure.`,
 					return fmt.Errorf("flushing export: %w", err)
 				}
 				if outFile != nil {
+					if err := outFile.Sync(); err != nil {
+						return fmt.Errorf("syncing export file: %w", err)
+					}
+					stagedPath := outFile.Name()
 					if err := outFile.Close(); err != nil {
 						return fmt.Errorf("closing export file: %w", err)
 					}
 					outFile = nil
+					if err := os.Rename(stagedPath, outputFile); err != nil {
+						return fmt.Errorf("publishing export file: %w", err)
+					}
 				}
 				return nil
 			}
 
-			config := resourceReadConfigFor(resource)
 			allItems := []json.RawMessage{}
 			var singlePayload json.RawMessage
-			count, page, cursor := 0, 0, ""
-			for {
-				remaining := 0
-				if limit > 0 {
-					remaining = limit - count
+			count := 0
+			emit := func(item json.RawMessage) error {
+				if format == "jsonl" {
+					if _, err := fmt.Fprintln(writer, string(item)); err != nil {
+						return fmt.Errorf("writing export: %w", err)
+					}
+				} else {
+					allItems = append(allItems, item)
 				}
-				params := map[string]string(nil)
-				if !singleItem && config.paginationType != "" {
-					params = resourcePageParams(config, cursor, page, remaining)
-				}
-				data, err := c.Get(cmd.Context(), path, params)
+				return nil
+			}
+			if singleItem {
+				data, err := c.Get(cmd.Context(), path, nil)
 				if err != nil {
 					return classifyAPIError(cmd.OutOrStdout(), err, flags)
 				}
-				if singleItem {
-					count = 1
-					if format == "jsonl" {
-						if _, err := fmt.Fprintln(writer, string(data)); err != nil {
-							return fmt.Errorf("writing export: %w", err)
-						}
-					} else {
-						singlePayload = data
+				count = 1
+				if format == "jsonl" {
+					if err := emit(data); err != nil {
+						return err
 					}
-					break
+				} else {
+					singlePayload = data
 				}
-				items, nextCursor, hasMore := extractResourcePage(data, config)
-				if items == nil {
-					items = []json.RawMessage{data}
-				}
-				for _, item := range items {
-					if limit > 0 && count >= limit {
-						break
-					}
-					if format == "jsonl" {
-						if _, err := fmt.Fprintln(writer, string(item)); err != nil {
-							return fmt.Errorf("writing export: %w", err)
-						}
-					} else {
-						allItems = append(allItems, item)
-					}
-					count++
-				}
-
-				if config.paginationType == "" || len(items) == 0 || (limit > 0 && count >= limit) {
-					break
-				}
-				page++
-				var stop bool
-				cursor, stop, err = resourceNextCursor(config, cursor, nextCursor, hasMore)
+			} else {
+				count, err = crocoExportCollection(cmd.Context(), c, resource, limit, emit)
 				if err != nil {
-					return fmt.Errorf("export pagination for %q: %w", resource, err)
-				}
-				if stop {
-					break
-				}
-				if config.limitParam != "" && !hasMore {
-					requested, _ := strconv.Atoi(params[config.limitParam])
-					if requested > 0 && len(items) < requested {
-						break
-					}
-				}
-				if page > 100000 {
-					return fmt.Errorf("export pagination exceeded 100000 pages for %q", resource)
+					return classifyAPIError(cmd.OutOrStdout(), err, flags)
 				}
 			}
 
@@ -224,6 +206,20 @@ func openExportOutput(path string) (*os.File, error) {
 	if err := f.Chmod(0o600); err != nil {
 		_ = f.Close()
 		return nil, fmt.Errorf("setting output file permissions: %w", err)
+	}
+	return f, nil
+}
+
+// stageExportOutput keeps incomplete exports private and on the destination's
+// filesystem so a successful export can replace the destination atomically.
+func stageExportOutput(path string) (*os.File, error) {
+	dir := filepath.Dir(path)
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return nil, fmt.Errorf("creating output directory: %w", err)
+	}
+	f, err := os.CreateTemp(dir, ".crocoblock-export-*")
+	if err != nil {
+		return nil, fmt.Errorf("staging export file: %w", err)
 	}
 	return f, nil
 }

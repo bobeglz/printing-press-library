@@ -41,8 +41,9 @@ but do not stop the import.`,
 			if err != nil {
 				return usageErr(err)
 			}
-			// Root --dry-run reaches newClient. A command-local flag of the
-			// same name would leave flags.dryRun false and still deliver.
+			if dryRunOK(flags) {
+				return writeDryRun(cmd.OutOrStdout(), flags, cmd.CommandPath())
+			}
 			c, err := flags.newClient()
 			if err != nil {
 				return err
@@ -83,19 +84,15 @@ but do not stop the import.`,
 					continue
 				}
 
-				_, status, err := c.Post(cmd.Context(), path, body)
+				_, err := crocoRequest(cmd.Context(), c, "POST", path, nil, body, false)
 				if err != nil {
 					failed++
-					// Stop the batch only when this status is actually an auth
-					// failure or a firewall/challenge refusal. A no-auth 401/403
-					// is an ordinary API error and must not abort the rest.
-					if status == 401 || status == 403 {
-						classified := classifyAPIErrorOnly(err)
-						switch ExitCode(classified) {
-						case 4, 7:
-							terminalErr = classifyAPIError(cmd.OutOrStdout(), err, flags)
-							continue
-						}
+					// The guarded transport preserves typed auth and refusal errors.
+					// Stop these failures without depending on a raw HTTP status.
+					switch ExitCode(err) {
+					case 4, 7:
+						terminalErr = err
+						continue
 					}
 					fmt.Fprintf(os.Stderr, "warning: failed to import record: %v\n", err)
 					continue
@@ -125,9 +122,9 @@ but do not stop the import.`,
 					if ExitCode(terminalErr) != 4 {
 						reason = "the service refused the request"
 					}
-					return fmt.Errorf("import stopped after %s with %d succeeded, %d failed, and %d skipped: %w", reason, success, failed, skipped, terminalErr)
+					return fmt.Errorf("import stopped after %s with %d succeeded, %d failed, and %d skipped; inspect the site before replaying the batch: %w", reason, success, failed, skipped, terminalErr)
 				}
-				return apiErr(fmt.Errorf("import completed with %d failed record(s), %d succeeded, and %d skipped", failed, success, skipped))
+				return apiErr(fmt.Errorf("import completed with %d failed record(s), %d succeeded, and %d skipped; failed writes may have committed: inspect the site before replaying the batch", failed, success, skipped))
 			}
 			return nil
 		},
