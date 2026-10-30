@@ -25,3 +25,5 @@ Tool invocations disable learning journals for argument privacy. Only non-sensit
 Hand-authored MCP, capture and inspection packages are durable extensions. Record code-level contracts in `.printing-press-patches/`; keep generated shared runtime packages unchanged. Re-run behavioral tests, shipcheck and the source-bound live matrix after code changes. Do not hand-edit acceptance fingerprints or score fields.
 
 This is a local print. Public publication and release/version stamping require a separate user request. No release tag or public install availability is implied by generated template references.
+
+The generic raw JSONL import adapter is disabled and its write-resource mapping removed at process initialization. Do not reintroduce it as an alternate route to tools/call. Use sync --arguments for typed read filters. Inspection compaction must preserve rare before/after values and nested evidence keys; explicit user --select projections still apply.

@@ -513,3 +513,7 @@ This shows the schema-aware request plan without reading input or sending. Inspe
 Native OAuth reuse currently supports this Mac's Codex Keychain entry; other platforms require a resource-specific bearer through the normal config seam. This client does not register itself under Codex's OAuth identity. No generic Cloud API token is assumed to work with this MCP. Expired native sessions require `auth codex --launch` through the supported native client.
 
 No inbox, chat history, service-window prediction, delivery guarantee, cost estimate, automatic app publication or independent OAuth registration is claimed. No remote writes were used to validate this print. Schema and safety-hint changes in the beta server fail closed before a domain call.
+
+## Adapter boundaries
+
+Raw JSONL import is disabled for this MCP resource. Use schema-aware domain commands for writes and `sync --arguments` for typed read arguments. The JSON object is validated against the selected read tool; `--param` remains available for scalar selections. Inspection output retains evidence fields under `--agent` and `--compact`; use `--select` to intentionally narrow the result.

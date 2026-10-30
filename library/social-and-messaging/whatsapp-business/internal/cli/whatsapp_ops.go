@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"sort"
 	"time"
 
 	"github.com/mvanhorn/printing-press-library/library/social-and-messaging/whatsapp-business/internal/captures"
@@ -139,7 +140,7 @@ func configureWhatsAppInspectionCmd(cmd *cobra.Command, kind string, flags *root
 		if err != nil {
 			return usageErr(err)
 		}
-		return flags.printJSON(cmd, view)
+		return printWhatsAppInspection(cmd, flags, view)
 	}
 	switch kind {
 	case "scope-map":
@@ -175,4 +176,39 @@ func opsRequired(kind string) []string {
 	default:
 		return []string{"before", "after"}
 	}
+}
+
+// Inspection evidence is heterogeneous. Keep all observed keys in compact
+// output so a rare before/after value cannot disappear from an agent's view.
+func printWhatsAppInspection(cmd *cobra.Command, flags *rootFlags, view map[string]any) error {
+	raw, err := json.Marshal(view)
+	if err != nil {
+		return err
+	}
+	var normalized any
+	if err = json.Unmarshal(raw, &normalized); err != nil {
+		return err
+	}
+	seen := map[string]bool{}
+	var walk func(any)
+	walk = func(v any) {
+		switch x := v.(type) {
+		case map[string]any:
+			for k, v := range x {
+				seen[k] = true
+				walk(v)
+			}
+		case []any:
+			for _, v := range x {
+				walk(v)
+			}
+		}
+	}
+	walk(normalized)
+	keys := make([]string, 0, len(seen))
+	for key := range seen {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	return printJSONFilteredKeep(cmd.OutOrStdout(), view, flags, keys...)
 }

@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "generated_at": "2026-10-30T03:24:54.212363Z",
-  "printing_press_version": "4.33.8",
+  "generated_at": "2026-10-30T04:09:48.872262Z",
+  "printing_press_version": "4.33.9",
   "api_name": "whatsapp-business",
   "display_name": "WhatsApp Business Tools",
   "cli_name": "whatsapp-business-pp-cli",
@@ -85,8 +85,8 @@
   "verify": {
     "mode": "live",
     "pass_rate": 100,
-    "passed": 38,
-    "total": 38,
+    "passed": 37,
+    "total": 37,
     "data_pipeline": true,
     "verdict": "PASS"
   },

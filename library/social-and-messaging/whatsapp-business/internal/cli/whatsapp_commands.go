@@ -26,6 +26,7 @@ type whatsappOptions struct {
 }
 
 func init() {
+	delete(resourceWritePaths, "whatsapp-business-tools") // One-time guard; root construction may be concurrent.
 	registerNovelCommand(registerWhatsApp)
 	// Extend the generated capability index at process initialization. The raw
 	// transport is intentionally excluded; it is only a safe preview route.
@@ -48,6 +49,18 @@ func registerWhatsApp(root *cobra.Command, flags *rootFlags) {
 	root.PersistentFlags().StringVar(&o.db, "db", "", "SQLite capture store path; defaults to the scoped CLI data directory")
 	if err := root.PersistentFlags().SetAnnotation("db", "mcp:write-flags", []string{"true"}); err != nil {
 		panic(err) // The db flag is registered immediately above; a missing flag is a programming error.
+	}
+	// The generic JSONL adapter must never expose the raw multiplexed MCP POST.
+	if imp, _, err := root.Find([]string{"import"}); err == nil && imp != root {
+		imp.Hidden = true
+		if imp.Annotations == nil {
+			imp.Annotations = map[string]string{}
+		}
+		imp.Annotations["mcp:hidden"] = "true"
+		imp.Short = "Raw MCP bulk import is unavailable; use schema-aware domain commands"
+		imp.RunE = func(cmd *cobra.Command, args []string) error {
+			return usageErr(fmt.Errorf("raw MCP import is disabled; use schema-aware domain commands with explicit confirmation"))
+		}
 	}
 	registerDeclaredWhatsAppTools(root, flags, o)
 	auth := whatsappGroup(root, "auth", flags)
@@ -592,7 +605,7 @@ func newCaptureSQL(flags *rootFlags, o *whatsappOptions) *cobra.Command {
 	return cmd
 }
 func newWhatsAppSync(flags *rootFlags, o *whatsappOptions) *cobra.Command {
-	var tool, arguments string
+	var tool, param, arguments string
 	cmd := &cobra.Command{Use: "sync", Short: "Capture one explicit read-only MCP operation; never sweep unselected businesses", Example: "  whatsapp-business-pp-cli sync --resources ping --codex-auth --agent", Annotations: map[string]string{"pp:data-source": "live", "mcp:read-only": "true"}, RunE: func(cmd *cobra.Command, args []string) error {
 		if dryRunOK(flags) {
 			return writeDryRun(cmd.OutOrStdout(), flags, "capture one selected read-only MCP operation")
@@ -602,7 +615,21 @@ func newWhatsAppSync(flags *rootFlags, o *whatsappOptions) *cobra.Command {
 			return usageErr(fmt.Errorf("--resources must name exactly one read-only MCP tool"))
 		}
 		input := map[string]any{}
-		for _, part := range strings.Split(arguments, ",") {
+		if arguments != "" && param != "" {
+			return usageErr(fmt.Errorf("choose --arguments or --param"))
+		}
+		if arguments != "" {
+			decoder := json.NewDecoder(strings.NewReader(arguments))
+			decoder.UseNumber()
+			if err := decoder.Decode(&input); err != nil || input == nil {
+				return usageErr(fmt.Errorf("--arguments requires one JSON object"))
+			}
+			var extra any
+			if decoder.Decode(&extra) != io.EOF {
+				return usageErr(fmt.Errorf("--arguments requires exactly one JSON object"))
+			}
+		}
+		for _, part := range strings.Split(param, ",") {
 			if part == "" {
 				continue
 			}
@@ -646,7 +673,9 @@ func newWhatsAppSync(flags *rootFlags, o *whatsappOptions) *cobra.Command {
 		return flags.printJSON(cmd, s)
 	}}
 	cmd.Flags().StringVar(&tool, "resources", "", "Exactly one read-only upstream MCP tool to capture")
-	cmd.Flags().StringVar(&arguments, "param", "", "Explicit upstream selection as comma-separated key=value arguments")
+	cmd.Flags().StringVar(&param, "param", "", "Scalar upstream selection as comma-separated key=value entries; use --arguments for arrays or objects")
+	cmd.Flags().StringVar(&arguments, "arguments", "", "One JSON object of upstream read arguments, including typed array filters")
+	cmd.PreRunE = func(cmd *cobra.Command, args []string) error { flags.noLearn = true; return nil }
 	return cmd
 }
 
